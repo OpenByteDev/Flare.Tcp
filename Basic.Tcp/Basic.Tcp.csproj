@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <Nullable>Enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <Company>OpenByte</Company>
+    <Product>OpenByte</Product>
+    <Description>A basic asynchronous multi-client message-based tcp server (and client).</Description>
+    <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/OpenByteDev/Basic.Tcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/OpenByteDev/Basic.Tcp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>tcp,server,client,networking,simple,async</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>True</Optimize>
+  </PropertyGroup>
+
+
+</Project>
