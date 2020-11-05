@@ -1,7 +1,7 @@
 # Basic.Tcp
 
 [![nuget badge](https://badgen.net/nuget/v/Basic.Tcp)](https://www.nuget.org/packages/Basic.Tcp/)
-[![Unlicense](https://img.shields.io/github/license/OpenByteDev/Basic.Tcp)](./LICENSE)
+[![Unlicense](https://img.shields.io/github/license/OpenByteDev/Basic.Tcp)](./UNLICENSE)
 
 A basic asynchronous multi-client message-based event-driven tcp server (and client). 
 
