@@ -18,12 +18,16 @@ namespace Basic.Tcp {
         public bool IsDisconnected => !IsConnected;
 
         public event MessageReceivedEventHandler? MessageReceived;
-        public delegate void MessageReceivedEventHandler(ReadOnlySpan<byte> message);
+        public delegate void MessageReceivedEventHandler(Span<byte> message);
 
         public BasicTcpClient() {
             _client = new TcpClient();
             _readGuard = new ThreadSafeGuard(false);
             _connectGuard = new ThreadSafeGuard(false);
+        }
+
+        protected virtual void OnMessageReceived(Span<byte> message) {
+            MessageReceived?.Invoke(message);
         }
 
         public ValueTask ConnectAsync(IPEndPoint endPoint, CancellationToken cancellationToken = default) =>
@@ -59,11 +63,11 @@ namespace Basic.Tcp {
             using var token = StartReading();
 
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
-            return ReadMessageFromStreamAsync(_networkStream, message => MessageReceived?.Invoke(message), cancellationToken);
+            return ReadMessageFromStreamAsync(_networkStream, OnMessageReceived, cancellationToken);
         }
         public void ReadMessage() {
             EnsureConnected();
-            ReadMessageFromStream(_networkStream, message => MessageReceived?.Invoke(message));
+            ReadMessageFromStream(_networkStream, OnMessageReceived);
         }
 
         public async Task ReadMessagesAsync(CancellationToken cancellationToken = default) {
@@ -74,12 +78,12 @@ namespace Basic.Tcp {
 
             var headerBuffer = new byte[4];
             while (_client.Connected && !linkedToken.IsCancellationRequested)
-                await ReadMessageFromStreamAsync(_networkStream, message => MessageReceived?.Invoke(message), headerBuffer, cancellationToken).ConfigureAwait(false); ;
+                await ReadMessageFromStreamAsync(_networkStream, OnMessageReceived, headerBuffer, cancellationToken).ConfigureAwait(false); ;
         }
         public void ReadMessages() {
             EnsureConnected();
 
-            ReadMessagesFromStream(_networkStream, message => MessageReceived?.Invoke(message), () => _client.Connected);
+            ReadMessagesFromStream(_networkStream, OnMessageReceived, () => _client.Connected);
         }
 
         protected void EnsureConnected() {

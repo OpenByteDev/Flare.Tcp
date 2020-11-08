@@ -18,7 +18,7 @@ namespace Basic.Tcp {
         public int ClientCount => _clients.Count;
 
         public event MessageReceivedEventHandler? MessageReceived;
-        public delegate void MessageReceivedEventHandler(long clientId, ReadOnlySpan<byte> message);
+        public delegate void MessageReceivedEventHandler(long clientId, Span<byte> message);
 
         public event ClientConnectedEventHandler? ClientConnected;
         public delegate void ClientConnectedEventHandler(long clientId);
@@ -29,6 +29,18 @@ namespace Basic.Tcp {
         public BasicTcpServer(int port) {
             _listener = TcpListener.Create(port);
             _clients = new ConcurrentDictionary<long, ClientToken>();
+        }
+
+        protected virtual void OnMessageReceived(long clientId, Span<byte> message) {
+            MessageReceived?.Invoke(clientId, message);
+        }
+
+        protected virtual void OnClientConnected(long clientId) {
+            ClientConnected?.Invoke(clientId);
+        }
+
+        protected virtual void OnClientDisconnected(long clientId) {
+            ClientDisconnected?.Invoke(clientId);
         }
 
         public async Task ListenAsync(CancellationToken cancellationToken = default) {
@@ -43,7 +55,7 @@ namespace Basic.Tcp {
                 var clientId = GetAndIncrementNextClientId();
                 var client = new ClientToken(clientId, socket);
                 _clients.TryAdd(clientId, client);
-                ClientConnected?.Invoke(clientId);
+                OnClientConnected(clientId);
                 HandleClient(client);
             }
         }
@@ -58,7 +70,7 @@ namespace Basic.Tcp {
                 var clientId = GetAndIncrementNextClientId();
                 var client = new ClientToken(clientId, socket);
                 _clients.TryAdd(clientId, client);
-                ClientConnected?.Invoke(clientId);
+                OnClientDisconnected(clientId);
                 HandleClient2(client);
             }
         }
@@ -114,7 +126,7 @@ namespace Basic.Tcp {
             var stream = socket.GetStream();
 
             var readTask = Task.Run(() => {
-                ReadMessagesFromStream(stream, message => MessageReceived?.Invoke(client.Id, message), () => socket.Connected && !linkedToken.IsCancellationRequested);
+                ReadMessagesFromStream(stream, message => OnMessageReceived(client.Id, message), () => socket.Connected && !linkedToken.IsCancellationRequested);
             }, linkedToken);
 
             var writeTask = Task.Run(() => {
@@ -133,7 +145,7 @@ namespace Basic.Tcp {
             Task.WhenAny(readTask, writeTask).ContinueWith(_ => {
                 // handle client disconnect or failure
                 _clients.TryRemove(client.Id);
-                ClientDisconnected?.Invoke(client.Id);
+                OnClientDisconnected(client.Id);
 
                 // ensure both tasks finish
                 clientCancellationTokenSource.Cancel();

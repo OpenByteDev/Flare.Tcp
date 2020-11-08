@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Basic.Tcp {
     public class BasicTcpSocket : IDisposable {
 
-        protected internal delegate void MessageHandler(ReadOnlySpan<byte> message);
+        protected internal delegate void MessageHandler(Span<byte> message);
 
         protected internal CancellationTokenSource? _cancellationTokenSource;
         protected internal CancellationToken CancellationToken => _cancellationTokenSource?.Token ?? CancellationToken.None;
