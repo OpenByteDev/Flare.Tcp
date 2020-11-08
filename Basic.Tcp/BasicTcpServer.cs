@@ -70,7 +70,7 @@ namespace Basic.Tcp {
                 var clientId = GetAndIncrementNextClientId();
                 var client = new ClientToken(clientId, socket);
                 _clients.TryAdd(clientId, client);
-                OnClientDisconnected(clientId);
+                OnClientConnected(clientId);
                 HandleClient2(client);
             }
         }
