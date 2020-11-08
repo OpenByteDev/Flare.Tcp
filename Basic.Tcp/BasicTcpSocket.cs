@@ -72,7 +72,35 @@ namespace Basic.Tcp {
                     ArrayPool<byte>.Shared.Return(messageBuffer);
             }
         }
+        protected static async Task ReadMessagesFromStreamAsync(Stream stream, MessageHandler messageHandler, Func<bool> readUntil, CancellationToken cancellationToken) {
+            var pool = ArrayPool<byte>.Shared;
+            byte[] headerBuffer = new byte[sizeof(int)];
+            byte[]? rentedMessageBuffer = null;
 
+            try {
+                while (readUntil()) {
+                    // read and parse header
+                    await stream.ReadExactAsync(headerBuffer, cancellationToken).ConfigureAwait(false);
+                    var messageLength = BinaryPrimitives.ReadInt32LittleEndian(headerBuffer);
+
+                    // rent or rerent buffer if needed
+                    if (rentedMessageBuffer is null) {
+                        rentedMessageBuffer = pool.Rent(messageLength);
+                    } else if (rentedMessageBuffer.Length < messageLength) {
+                        pool.Return(rentedMessageBuffer);
+                        rentedMessageBuffer = pool.Rent(messageLength);
+                    }
+
+                    // read message into buffer 
+                    await stream.ReadExactAsync(rentedMessageBuffer.AsMemory(0, messageLength), cancellationToken).ConfigureAwait(false);
+                    messageHandler(rentedMessageBuffer.AsSpan(0, messageLength));
+                }
+            } finally {
+                if (rentedMessageBuffer != null)
+                    pool.Return(rentedMessageBuffer);
+            }
+        }
+        
         protected static void ReadMessageFromStream(Stream stream, MessageHandler messageHandler) {
             Span<byte> headerBuffer = stackalloc byte[sizeof(int)];
 
@@ -81,7 +109,7 @@ namespace Basic.Tcp {
             var messageLength = BinaryPrimitives.ReadInt32LittleEndian(headerBuffer);
 
             // read and handle message
-            if (messageLength < 512) {
+            if (messageLength <= 512) {
                 Span<byte> messageBuffer = stackalloc byte[messageLength];
                 stream.ReadExact(messageBuffer);
                 messageHandler(messageBuffer);

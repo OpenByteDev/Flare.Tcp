@@ -86,9 +86,7 @@ namespace Basic.Tcp {
             var stream = socket.GetStream();
 
             var readTask = Task.Run(async () => {
-                var headerBuffer = new byte[4];
-                while (socket.Connected && !linkedToken.IsCancellationRequested)
-                    await ReadMessageFromStreamAsync(stream, message => MessageReceived?.Invoke(client.Id, message), headerBuffer, linkedToken).ConfigureAwait(false);
+                await ReadMessagesFromStreamAsync(stream, message => MessageReceived?.Invoke(client.Id, message), () => socket.Connected && !linkedToken.IsCancellationRequested, linkedToken).ConfigureAwait(false);
             }, linkedToken);
 
             var writeTask = Task.Run(async () => {
