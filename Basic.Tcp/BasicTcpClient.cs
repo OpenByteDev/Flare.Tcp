@@ -10,9 +10,11 @@ namespace Basic.Tcp {
         private readonly TcpClient _client;
 
         private NetworkStream _networkStream;
-        private ThreadSafeGuard _guard;
+        private ThreadSafeGuard _readGuard;
+        private ThreadSafeGuard _connectGuard;
 
         public bool IsConnected => _client.Connected;
+        public bool IsConnecting => _connectGuard.Get();
         public bool IsDisconnected => !IsConnected;
 
         public event MessageReceivedEventHandler? MessageReceived;
@@ -20,17 +22,25 @@ namespace Basic.Tcp {
 
         public BasicTcpClient() {
             _client = new TcpClient();
+            _readGuard = new ThreadSafeGuard(false);
+            _connectGuard = new ThreadSafeGuard(false);
         }
 
         public ValueTask ConnectAsync(IPEndPoint endPoint, CancellationToken cancellationToken = default) =>
             ConnectAsync(endPoint.Address, endPoint.Port, cancellationToken);
         public async ValueTask ConnectAsync(IPAddress address, int port, CancellationToken cancellationToken = default) {
-            EnsureDisonnected();
+            using var token = StartConnecting();
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
 
             await _client.ConnectAsync(address, port, linkedToken).ConfigureAwait(false);
             _networkStream = _client.GetStream();
-            _guard = new ThreadSafeGuard(false);
+        }
+        public void Connect(IPEndPoint endPoint) =>
+           Connect(endPoint.Address, endPoint.Port);
+        public void Connect(IPAddress address, int port) {
+            using var token = StartConnecting();
+            _client.Connect(address, port);
+            _networkStream = _client.GetStream();
         }
 
         public ValueTask SendMessageAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken = default) {
@@ -39,6 +49,10 @@ namespace Basic.Tcp {
 
             return WriteMessageToStreamAsync(_networkStream, message, linkedToken);
         }
+        public void SendMessage(ReadOnlySpan<byte> message) {
+            EnsureConnected();
+            WriteMessageToStream(_networkStream, message);
+        }
 
         public Task ReadMessageAsync(CancellationToken cancellationToken = default) {
             EnsureConnected();
@@ -46,6 +60,10 @@ namespace Basic.Tcp {
 
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
             return ReadMessageFromStreamAsync(_networkStream, message => MessageReceived?.Invoke(message), cancellationToken);
+        }
+        public void ReadMessage() {
+            EnsureConnected();
+            ReadMessageFromStream(_networkStream, message => MessageReceived?.Invoke(message));
         }
 
         public async Task ReadMessagesAsync(CancellationToken cancellationToken = default) {
@@ -58,17 +76,26 @@ namespace Basic.Tcp {
             while (_client.Connected && !linkedToken.IsCancellationRequested)
                 await ReadMessageFromStreamAsync(_networkStream, message => MessageReceived?.Invoke(message), headerBuffer, cancellationToken).ConfigureAwait(false); ;
         }
+        public void ReadMessages() {
+            EnsureConnected();
+
+            ReadMessagesFromStream(_networkStream, message => MessageReceived?.Invoke(message), () => _client.Connected);
+        }
 
         protected void EnsureConnected() {
             if (IsDisconnected)
-                throw new InvalidOperationException("Client is disconnected");
+                throw new InvalidOperationException("The client is disconnected.");
         }
         protected void EnsureDisonnected() {
             if (IsConnected)
-                throw new InvalidOperationException("Client is already connected");
+                throw new InvalidOperationException("The client is already connected.");
         }
         private IDisposable StartReading() {
-            return _guard.UseOrThrow(() => new InvalidOperationException("A read operation already in progress."));
+            return _readGuard.UseOrThrow(() => new InvalidOperationException("A read operation already in progress."));
+        }
+        private IDisposable StartConnecting() {
+            EnsureDisonnected();
+            return _readGuard.UseOrThrow(() => new InvalidOperationException("The client is already connecting."));
         }
 
         public void Disconnect() {
@@ -79,6 +106,8 @@ namespace Basic.Tcp {
             _networkStream?.Dispose();
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource?.Dispose();
+            _readGuard.Unset();
+            _connectGuard.Unset();
         }
 
         public override void Dispose() {

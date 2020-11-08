@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Basic.Tcp {
     public class BasicTcpSocket : IDisposable {
 
-        protected internal delegate void MessageHandler(Span<byte> message);
+        protected internal delegate void MessageHandler(ReadOnlySpan<byte> message);
 
         protected internal CancellationTokenSource? _cancellationTokenSource;
         protected internal CancellationToken CancellationToken => _cancellationTokenSource?.Token ?? CancellationToken.None;
@@ -34,9 +34,21 @@ namespace Basic.Tcp {
             await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        protected static void WriteMessageToStream(Stream stream, ReadOnlySpan<byte> message) {
+            // write message length
+            Span<byte> headerBuffer = stackalloc byte[sizeof(int)];
+            BinaryPrimitives.WriteInt32LittleEndian(headerBuffer, message.Length);
+            stream.Write(headerBuffer);
+
+            // write message
+            stream.Write(message);
+
+            // flush stream
+            stream.Flush();
+        }
+
         protected static Task ReadMessageFromStreamAsync(Stream stream, MessageHandler messageHandler, CancellationToken cancellationToken) =>
             ReadMessageFromStreamAsync(stream, messageHandler, new byte[sizeof(int)], cancellationToken);
-
         protected static async Task ReadMessageFromStreamAsync(Stream stream, MessageHandler messageHandler, byte[] headerBuffer, CancellationToken cancellationToken) {
             // read and parse header
             await stream.ReadExactAsync(headerBuffer, cancellationToken).ConfigureAwait(false);
@@ -58,6 +70,58 @@ namespace Basic.Tcp {
                 // return the rented array if needed.
                 if (shouldRentBuffer && messageBuffer != null)
                     ArrayPool<byte>.Shared.Return(messageBuffer);
+            }
+        }
+
+        protected static void ReadMessageFromStream(Stream stream, MessageHandler messageHandler) {
+            Span<byte> headerBuffer = stackalloc byte[sizeof(int)];
+
+            // read and parse header
+            stream.ReadExact(headerBuffer);
+            var messageLength = BinaryPrimitives.ReadInt32LittleEndian(headerBuffer);
+
+            // read and handle message
+            if (messageLength < 512) {
+                Span<byte> messageBuffer = stackalloc byte[messageLength];
+                stream.ReadExact(messageBuffer);
+                messageHandler(messageBuffer);
+            } else {
+                byte[]? messageBuffer = null;
+                try {
+                    messageBuffer = ArrayPool<byte>.Shared.Rent(messageLength);
+                    var messageSpan = messageBuffer.AsSpan(0, messageLength);
+                    stream.ReadExact(messageSpan);
+                    messageHandler(messageSpan);
+                } finally {
+                    if (messageBuffer != null)
+                        ArrayPool<byte>.Shared.Return(messageBuffer);
+                }
+            }
+        }
+        protected static void ReadMessagesFromStream(Stream stream, MessageHandler messageHandler, Func<bool> readUntil) {
+            var pool = ArrayPool<byte>.Shared;
+            Span<byte> headerBuffer = stackalloc byte[sizeof(int)];
+            byte[]? rentedMessageBuffer = null;
+
+            try {
+                while (readUntil()) {
+                    // read and parse header
+                    stream.ReadExact(headerBuffer);
+                    var messageLength = BinaryPrimitives.ReadInt32LittleEndian(headerBuffer);
+
+                    if (rentedMessageBuffer is null)
+                        rentedMessageBuffer = pool.Rent(messageLength);
+                    else if (rentedMessageBuffer.Length < messageLength) {
+                        pool.Return(rentedMessageBuffer);
+                        rentedMessageBuffer = pool.Rent(messageLength);
+                    }
+                    var messageSpan = rentedMessageBuffer.AsSpan(0, messageLength);
+                    stream.ReadExact(messageSpan);
+                    messageHandler(messageSpan);
+                }
+            } finally {
+                if (rentedMessageBuffer != null)
+                    pool.Return(rentedMessageBuffer);
             }
         }
 

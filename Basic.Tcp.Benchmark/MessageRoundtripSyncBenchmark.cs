@@ -4,14 +4,14 @@ using System.Net;
 using System.Threading.Tasks;
 
 namespace Basic.Tcp.Benchmark {
-    public class BasicBenchmarks {
+    public class MessageRoundtripSyncBenchmark {
 
         private BasicTcpServer server;
         private BasicTcpClient client;
         private byte[] data;
 
         [Params(1, 10, 100, 1000)]
-        public int N;
+        public int MessageCount;
 
         [GlobalSetup]
         public void Setup() {
@@ -24,15 +24,15 @@ namespace Basic.Tcp.Benchmark {
             server.MessageReceived += (clientId, message) => {
                 server.EnqueueMessage(clientId, message.ToArray());
             };
-            Task.Run(() => server.ListenAsync());
-            client.ConnectAsync(IPAddress.Loopback, 8888).AsTask().GetAwaiter().GetResult();
+            Task.Run(() => server.Listen());
+            client.Connect(IPAddress.Loopback, 8888);
         }
 
         [Benchmark]
-        public async Task MessageRoundtrip() {
-            for (var i = 0; i < N; i++) {
-                await client.SendMessageAsync(data).ConfigureAwait(false);
-                await client.ReadMessageAsync().ConfigureAwait(false);
+        public void MessageRoundtrip() {
+            for (var i = 0; i < MessageCount; i++) {
+                client.SendMessage(data);
+                client.ReadMessage();
             }
         }
 
