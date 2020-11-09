@@ -71,7 +71,7 @@ namespace Basic.Tcp {
                 var client = new ClientToken(clientId, socket);
                 _clients.TryAdd(clientId, client);
                 OnClientConnected(clientId);
-                HandleClient2(client);
+                HandleClient(client);
             }
         }
 
@@ -85,50 +85,14 @@ namespace Basic.Tcp {
             var socket = client.Socket;
             var stream = socket.GetStream();
 
-            var readTask = Task.Run(async () => {
-                await ReadMessagesFromStreamAsync(stream, message => MessageReceived?.Invoke(client.Id, message), () => socket.Connected && !linkedToken.IsCancellationRequested, linkedToken).ConfigureAwait(false);
-            }, linkedToken);
-
-            var writeTask = Task.Run(async () => {
-                var headerBuffer = new byte[4];
-                while (socket.Connected && !linkedToken.IsCancellationRequested) {
-                    // wait for new packets.
-                    client.WriteEvent.Wait(linkedToken);
-                    client.WriteEvent.Reset();
-
-                    // write queued message to stream
-                    while (client.WriteQueue.TryDequeue(out var message))
-                        await WriteMessageToStreamAsync(stream, message, linkedToken).ConfigureAwait(false);
-                }
-            }, linkedToken);
-
-            Task.WhenAny(readTask, writeTask).ContinueWith(_ => {
-                // handle client disconnect or failure
-                _clients.TryRemove(client.Id);
-                ClientDisconnected?.Invoke(client.Id);
-
-                // ensure both tasks finish
-                clientCancellationTokenSource.Cancel();
-
-                // dispose resources
-                clientCancellationTokenSource.Dispose();
-                client.Dispose();
-                stream.Dispose();
-            });
-        }
-        private void HandleClient2(ClientToken client) {
-            var clientCancellationTokenSource = new CancellationTokenSource();
-            var linkedToken = GetLinkedCancellationToken(clientCancellationTokenSource.Token);
-
-            var socket = client.Socket;
-            var stream = socket.GetStream();
-
             var readTask = Task.Run(() => {
-                ReadMessagesFromStream(stream, message => OnMessageReceived(client.Id, message), () => socket.Connected && !linkedToken.IsCancellationRequested);
+                var reader = new MessageStreamReader(stream);
+                 while (socket.Connected && !linkedToken.IsCancellationRequested)
+                    OnMessageReceived(client.Id, reader.ReadMessage());
             }, linkedToken);
 
             var writeTask = Task.Run(() => {
-                Span<byte> headerBuffer = stackalloc byte[4];
+                var writer = new MessageStreamWriter(stream);
                 while (socket.Connected && !linkedToken.IsCancellationRequested) {
                     // wait for new packets.
                     client.WriteEvent.Wait(linkedToken);
@@ -136,7 +100,7 @@ namespace Basic.Tcp {
 
                     // write queued message to stream
                     while (client.WriteQueue.TryDequeue(out var message))
-                        WriteMessageToStream(stream, message.Span);
+                        writer.WriteMessage(message.Span);
                 }
             }, linkedToken);
 

@@ -10,6 +10,8 @@ namespace Basic.Tcp {
         private readonly TcpClient _client;
 
         private NetworkStream _networkStream;
+        private MessageStreamReader _messageReader;
+        private MessageStreamWriter _messageWriter;
         private ThreadSafeGuard _readGuard;
         private ThreadSafeGuard _connectGuard;
 
@@ -38,6 +40,8 @@ namespace Basic.Tcp {
 
             await _client.ConnectAsync(address, port, linkedToken).ConfigureAwait(false);
             _networkStream = _client.GetStream();
+            _messageReader = new MessageStreamReader(_networkStream);
+            _messageWriter = new MessageStreamWriter(_networkStream);
         }
         public void Connect(IPEndPoint endPoint) =>
            Connect(endPoint.Address, endPoint.Port);
@@ -45,17 +49,19 @@ namespace Basic.Tcp {
             using var token = StartConnecting();
             _client.Connect(address, port);
             _networkStream = _client.GetStream();
+            _messageReader = new MessageStreamReader(_networkStream);
+            _messageWriter = new MessageStreamWriter(_networkStream);
         }
 
         public ValueTask SendMessageAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken = default) {
             EnsureConnected();
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
 
-            return WriteMessageToStreamAsync(_networkStream, message, linkedToken);
+            return _messageWriter.WriteMessageAsync(message, linkedToken);
         }
         public void SendMessage(ReadOnlySpan<byte> message) {
             EnsureConnected();
-            WriteMessageToStream(_networkStream, message);
+            _messageWriter.WriteMessage(message);
         }
 
         public Task ReadMessageAsync(CancellationToken cancellationToken = default) {
@@ -63,11 +69,12 @@ namespace Basic.Tcp {
             using var token = StartReading();
 
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
-            return ReadMessageFromStreamAsync(_networkStream, OnMessageReceived, cancellationToken);
+            return _messageReader.ReadMessageAsync(OnMessageReceived, cancellationToken);
         }
         public void ReadMessage() {
             EnsureConnected();
-            ReadMessageFromStream(_networkStream, OnMessageReceived);
+            var message = _messageReader.ReadMessage();
+            OnMessageReceived(message);
         }
 
         public async Task ReadMessagesAsync(CancellationToken cancellationToken = default) {
@@ -76,14 +83,16 @@ namespace Basic.Tcp {
 
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
 
-            var headerBuffer = new byte[4];
             while (_client.Connected && !linkedToken.IsCancellationRequested)
-                await ReadMessageFromStreamAsync(_networkStream, OnMessageReceived, headerBuffer, cancellationToken).ConfigureAwait(false); ;
+                await _messageReader.ReadMessageAsync(OnMessageReceived, cancellationToken).ConfigureAwait(false);
         }
         public void ReadMessages() {
             EnsureConnected();
 
-            ReadMessagesFromStream(_networkStream, OnMessageReceived, () => _client.Connected);
+            while (_client.Connected && !CancellationToken.IsCancellationRequested) {
+                var message = _messageReader.ReadMessage();
+                OnMessageReceived(message);
+            }
         }
 
         protected void EnsureConnected() {
