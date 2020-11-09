@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Basic.Tcp", "Basic.Tcp\Basi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Basic.Tcp.Test", "Basic.Tcp.Test\Basic.Tcp.Test.csproj", "{65E9BD0E-3D80-409B-BCD5-2A7C9BE5C489}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Basic.Tcp.Benchmark", "Basic.Tcp.Benchmark\Basic.Tcp.Benchmark.csproj", "{17681B22-E715-42F9-996E-75D32AEEDCA4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Basic.Tcp.Benchmark", "Basic.Tcp.Benchmark\Basic.Tcp.Benchmark.csproj", "{17681B22-E715-42F9-996E-75D32AEEDCA4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -117,6 +117,7 @@ namespace Basic.Tcp {
             _client.Close();
             _client.Dispose();
             _networkStream?.Dispose();
+            _messageReader?.Dispose();
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource?.Dispose();
             _readGuard.Unset();

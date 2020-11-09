@@ -86,8 +86,8 @@ namespace Basic.Tcp {
             var stream = socket.GetStream();
 
             var readTask = Task.Run(() => {
-                var reader = new MessageStreamReader(stream);
-                 while (socket.Connected && !linkedToken.IsCancellationRequested)
+                using var reader = new MessageStreamReader(stream);
+                while (socket.Connected && !linkedToken.IsCancellationRequested)
                     OnMessageReceived(client.Id, reader.ReadMessage());
             }, linkedToken);
 
