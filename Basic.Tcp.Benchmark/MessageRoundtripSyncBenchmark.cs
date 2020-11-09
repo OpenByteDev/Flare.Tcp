@@ -10,13 +10,16 @@ namespace Basic.Tcp.Benchmark {
         private BasicTcpClient client;
         private byte[] data;
 
-        [Params(1, 10, 100, 1000)]
+        [Params(1, 10, 100)]
         public int MessageCount;
+
+        [Params(1, 1_000, 1_000_000)]
+        public int MessageBytes;
 
         [GlobalSetup]
         public void Setup() {
             var random = new Random();
-            data = new byte[1000];
+            data = new byte[MessageBytes];
             random.NextBytes(data);
 
             server = new BasicTcpServer(8888);
