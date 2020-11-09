@@ -9,13 +9,14 @@
   <PropertyGroup>
     <Company>OpenByte</Company>
     <Product>OpenByte</Product>
-    <Description>A basic asynchronous multi-client message-based event-driven tcp server (and client).</Description>
+    <Description>A basic multi-client message-based event-driven tcp server (and client).</Description>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/OpenByteDev/Basic.Tcp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/OpenByteDev/Basic.Tcp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>tcp,server,client,networking,simple,async,event-based,message-driven</PackageTags>
+    <PackageTags>tcp,server,client,networking,simple,async,sync,event-based,message-driven</PackageTags>
     <AnalysisLevel>preview</AnalysisLevel>
+    <Version>2.0.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
