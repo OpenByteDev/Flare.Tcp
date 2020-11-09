@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,7 +14,7 @@ namespace Basic.Tcp {
         private readonly ConcurrentDictionary<long, ClientToken> _clients;
         private long _nextClientId /* = 0 */;
 
-        public bool IsRunning { get; private set; } /* = false;*/
+        public bool IsRunning { get; private set; } /* = false; */
         public bool IsStopped => !IsRunning;
         public int ClientCount => _clients.Count;
 
@@ -26,8 +27,11 @@ namespace Basic.Tcp {
         public event ClientDisconnectedEventHandler? ClientDisconnected;
         public delegate void ClientDisconnectedEventHandler(long clientId);
 
-        public BasicTcpServer(int port) {
-            _listener = TcpListener.Create(port);
+        public BasicTcpServer(int port) : this(TcpListener.Create(port)) { }
+        public BasicTcpServer(IPAddress localAddress, int port) : this(new TcpListener(localAddress, port)) { }
+        public BasicTcpServer(IPEndPoint localEndPoint) : this(new TcpListener(localEndPoint)) { }
+        private BasicTcpServer(TcpListener listener) {
+            _listener = listener;
             _clients = new ConcurrentDictionary<long, ClientToken>();
         }
 
@@ -50,7 +54,7 @@ namespace Basic.Tcp {
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
             _listener.Start();
 
-            while (IsRunning && !CancellationToken.IsCancellationRequested) {
+            while (IsRunning && !linkedToken.IsCancellationRequested) {
                 var socket = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
                 var clientId = GetAndIncrementNextClientId();
                 var client = new ClientToken(clientId, socket);
@@ -59,13 +63,14 @@ namespace Basic.Tcp {
                 HandleClient(client);
             }
         }
+
         public void Listen() {
             EnsureStopped();
             IsRunning = true;
 
             _listener.Start();
 
-            while (IsRunning) {
+            while (IsRunning && !CancellationToken.IsCancellationRequested) {
                 var socket = _listener.AcceptTcpClient();
                 var clientId = GetAndIncrementNextClientId();
                 var client = new ClientToken(clientId, socket);
@@ -85,31 +90,31 @@ namespace Basic.Tcp {
             var socket = client.Socket;
             var stream = socket.GetStream();
 
-            var readTask = Task.Run(() => {
+            var readTask = Task.Factory.StartNew(() => {
                 using var reader = new MessageStreamReader(stream);
                 while (socket.Connected && !linkedToken.IsCancellationRequested)
                     OnMessageReceived(client.Id, reader.ReadMessage());
-            }, linkedToken);
+            }, linkedToken, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
 
-            var writeTask = Task.Run(() => {
+            var writeTask = Task.Factory.StartNew(() => {
                 var writer = new MessageStreamWriter(stream);
                 while (socket.Connected && !linkedToken.IsCancellationRequested) {
                     // wait for new packets.
-                    client.WriteEvent.Wait(linkedToken);
-                    client.WriteEvent.Reset();
+                    client.PendingMessageEvent.Wait(linkedToken);
+                    client.PendingMessageEvent.Reset();
 
                     // write queued message to stream
-                    while (client.WriteQueue.TryDequeue(out var message))
+                    while (client.PendingMessages.TryDequeue(out var message))
                         writer.WriteMessage(message.Span);
                 }
-            }, linkedToken);
+            }, linkedToken, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
 
             Task.WhenAny(readTask, writeTask).ContinueWith(_ => {
                 // handle client disconnect or failure
                 _clients.TryRemove(client.Id);
                 OnClientDisconnected(client.Id);
 
-                // ensure both tasks finish
+                // ensure both tasks complete
                 clientCancellationTokenSource.Cancel();
 
                 // dispose resources
@@ -170,32 +175,33 @@ namespace Basic.Tcp {
         }
 
         public override void Dispose() {
+            base.Dispose();
+
             if (IsRunning)
                 Stop();
         }
 
         private class ClientToken : IDisposable {
-
-            public TcpClient Socket;
-            public long Id;
-            public ConcurrentQueue<ReadOnlyMemory<byte>> WriteQueue;
-            public ManualResetEventSlim WriteEvent;
+            public readonly TcpClient Socket;
+            public readonly long Id;
+            public readonly ConcurrentQueue<ReadOnlyMemory<byte>> PendingMessages;
+            public readonly ManualResetEventSlim PendingMessageEvent;
 
             public ClientToken(long clientId, TcpClient socket) {
                 Socket = socket;
                 Id = clientId;
-                WriteQueue = new ConcurrentQueue<ReadOnlyMemory<byte>>();
-                WriteEvent = new ManualResetEventSlim(false);
+                PendingMessages = new ConcurrentQueue<ReadOnlyMemory<byte>>();
+                PendingMessageEvent = new ManualResetEventSlim(false);
             }
 
             public void EnqueueMessage(ReadOnlyMemory<byte> message) {
-                WriteQueue.Enqueue(message);
-                WriteEvent.Set();
+                PendingMessages.Enqueue(message);
+                PendingMessageEvent.Set();
             }
 
             public void Dispose() {
                 Socket?.Dispose();
-                WriteEvent?.Dispose();
+                PendingMessageEvent?.Dispose();
             }
         }
     }

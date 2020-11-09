@@ -12,8 +12,8 @@ namespace Basic.Tcp {
         private NetworkStream _networkStream;
         private MessageStreamReader _messageReader;
         private MessageStreamWriter _messageWriter;
-        private ThreadSafeGuard _readGuard;
-        private ThreadSafeGuard _connectGuard;
+        private readonly ThreadSafeGuard _readGuard;
+        private readonly ThreadSafeGuard _connectGuard;
 
         public bool IsConnected => _client.Connected;
         public bool IsConnecting => _connectGuard.Get();
@@ -125,6 +125,8 @@ namespace Basic.Tcp {
         }
 
         public override void Dispose() {
+            base.Dispose();
+
             if (IsConnected)
                 Disconnect();
         }

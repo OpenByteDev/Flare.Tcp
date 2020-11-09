@@ -15,6 +15,7 @@
     <RepositoryUrl>https://github.com/OpenByteDev/Basic.Tcp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>tcp,server,client,networking,simple,async,event-based,message-driven</PackageTags>
+    <AnalysisLevel>preview</AnalysisLevel>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">

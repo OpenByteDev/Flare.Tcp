@@ -75,7 +75,7 @@ namespace Basic.Tcp.Test {
             _ = Task.Run(() => server.ListenAsync());
 
             using var client = new BasicTcpClient();
-            await client.ConnectAsync(new IPEndPoint(IPAddress.Loopback, 8888));
+            await client.ConnectAsync(IPAddress.Loopback, 8888);
             await client.SendMessageAsync(encoding.GetBytes(testMessage));
 
             Assert.IsTrue(messageReceivedEvent.Wait(TimeSpan.FromSeconds(5)));
