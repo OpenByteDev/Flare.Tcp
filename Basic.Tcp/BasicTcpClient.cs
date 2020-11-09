@@ -47,6 +47,7 @@ namespace Basic.Tcp {
            Connect(endPoint.Address, endPoint.Port);
         public void Connect(IPAddress address, int port) {
             using var token = StartConnecting();
+
             _client.Connect(address, port);
             _networkStream = _client.GetStream();
             _messageReader = new MessageStreamReader(_networkStream);
@@ -61,6 +62,7 @@ namespace Basic.Tcp {
         }
         public void SendMessage(ReadOnlySpan<byte> message) {
             EnsureConnected();
+
             _messageWriter.WriteMessage(message);
         }
 
@@ -73,6 +75,7 @@ namespace Basic.Tcp {
         }
         public void ReadMessage() {
             EnsureConnected();
+
             var message = _messageReader.ReadMessage();
             OnMessageReceived(message);
         }
@@ -80,7 +83,6 @@ namespace Basic.Tcp {
         public async Task ReadMessagesAsync(CancellationToken cancellationToken = default) {
             EnsureConnected();
             using var token = StartReading();
-
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
 
             while (_client.Connected && !linkedToken.IsCancellationRequested)
