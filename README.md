@@ -3,9 +3,9 @@
 [![nuget badge](https://badgen.net/nuget/v/Flare.Tcp)](https://www.nuget.org/packages/Flare.Tcp/)
 [![Unlicense](https://img.shields.io/github/license/OpenByteDev/Flare.Tcp)](./UNLICENSE)
 
-A basic sync and async multi-client message-based event-driven tcp server (and client). 
+A basic multi-client message-based event-driven tcp server (and client) that supports. 
 
-## Using the BasicTcpServer
+## Using the FlareTcpServer
 
 ```csharp
 // create a new server that listens on port 4269
@@ -27,7 +27,7 @@ server.MessageReceived += (clientId, message) => {
 await server.ListenAsync();
 ```
 
-## Using the BasicTcpClient
+## Using the FlareTcpClient
 
 ```csharp
 // create a new client
