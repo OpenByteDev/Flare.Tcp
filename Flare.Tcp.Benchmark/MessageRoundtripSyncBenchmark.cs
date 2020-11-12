@@ -3,11 +3,11 @@ using System;
 using System.Net;
 using System.Threading.Tasks;
 
-namespace Basic.Tcp.Benchmark {
-    public class MessageRoundtripAsyncBenchmark {
+namespace Flare.Tcp.Benchmark {
+    public class MessageRoundtripSyncBenchmark {
 
-        private BasicTcpServer server;
-        private BasicTcpClient client;
+        private FlareTcpServer server;
+        private FlareTcpClient client;
         private byte[] data;
 
         [Params(1, 10, 100)]
@@ -17,25 +17,25 @@ namespace Basic.Tcp.Benchmark {
         public int MessageBytes;
 
         [GlobalSetup]
-        public async Task Setup() {
+        public void Setup() {
             var random = new Random();
             data = new byte[MessageBytes];
             random.NextBytes(data);
 
-            server = new BasicTcpServer(8888);
-            client = new BasicTcpClient();
+            server = new FlareTcpServer(8888);
+            client = new FlareTcpClient();
             server.MessageReceived += (clientId, message) => {
                 server.EnqueueMessage(clientId, message.ToArray());
             };
-            _ = Task.Run(() => server.ListenAsync());
-            await client.ConnectAsync(IPAddress.Loopback, 8888).ConfigureAwait(false);
+            Task.Run(() => server.Listen());
+            client.Connect(IPAddress.Loopback, 8888);
         }
 
         [Benchmark]
-        public async Task MessageRoundtrip() {
+        public void MessageRoundtrip() {
             for (var i = 0; i < MessageCount; i++) {
-                await client.SendMessageAsync(data).ConfigureAwait(false);
-                await client.ReadMessageAsync().ConfigureAwait(false);
+                client.SendMessage(data);
+                client.ReadMessage();
             }
         }
 

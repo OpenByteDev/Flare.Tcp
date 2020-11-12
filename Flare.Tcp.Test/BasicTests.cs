@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Basic.Tcp.Test {
+namespace Flare.Tcp.Test {
     [TestFixture]
     public static class BasicTests {
 
@@ -14,7 +14,7 @@ namespace Basic.Tcp.Test {
             using var connectedEvent = new ManualResetEventSlim(false);
             using var disconnectedEvent = new ManualResetEventSlim(false);
 
-            using var server = new BasicTcpServer(8888);
+            using var server = new FlareTcpServer(8888);
             server.ClientConnected += _ => {
                 Assert.IsFalse(connectedEvent.IsSet, "ClientConnected raised twice.");
                 connectedEvent.Set();
@@ -25,7 +25,7 @@ namespace Basic.Tcp.Test {
             };
             _ = Task.Run(() => server.ListenAsync());
 
-            using var client = new BasicTcpClient();
+            using var client = new FlareTcpClient();
             await client.ConnectAsync(IPAddress.Loopback, 8888).ConfigureAwait(false);
             Assert.IsTrue(connectedEvent.Wait(TimeSpan.FromSeconds(5)), "ClientConnected not raised.");
 
@@ -39,7 +39,7 @@ namespace Basic.Tcp.Test {
             using var connectedEvent = new ManualResetEventSlim(false);
             using var disconnectedEvent = new ManualResetEventSlim(false);
 
-            using var server = new BasicTcpServer(8888);
+            using var server = new FlareTcpServer(8888);
             server.ClientConnected += _ => {
                 Assert.IsFalse(connectedEvent.IsSet, "ClientConnected raised twice.");
                 connectedEvent.Set();
@@ -50,7 +50,7 @@ namespace Basic.Tcp.Test {
             };
             _ = Task.Run(() => server.Listen());
 
-            using var client = new BasicTcpClient();
+            using var client = new FlareTcpClient();
             client.Connect(IPAddress.Loopback, 8888);
             Assert.IsTrue(connectedEvent.Wait(TimeSpan.FromSeconds(5)), "ClientConnected not raised.");
 
@@ -66,7 +66,7 @@ namespace Basic.Tcp.Test {
             var encoding = Encoding.UTF8;
             const string testMessage = "Test";
 
-            using var server = new BasicTcpServer(8888);
+            using var server = new FlareTcpServer(8888);
             server.MessageReceived += (_, message) => {
                 var decoded = encoding.GetString(message);
                 Assert.AreEqual(testMessage, decoded);
@@ -74,7 +74,7 @@ namespace Basic.Tcp.Test {
             };
             _ = Task.Run(() => server.ListenAsync());
 
-            using var client = new BasicTcpClient();
+            using var client = new FlareTcpClient();
             await client.ConnectAsync(IPAddress.Loopback, 8888);
             await client.SendMessageAsync(encoding.GetBytes(testMessage));
 
@@ -82,7 +82,6 @@ namespace Basic.Tcp.Test {
             client.Disconnect();
             server.Stop();
         }
-
         [Test]
         public static void SimpleClientServerMessageTransferSync() {
             using var messageReceivedEvent = new ManualResetEventSlim(false);
@@ -90,7 +89,7 @@ namespace Basic.Tcp.Test {
             var encoding = Encoding.UTF8;
             const string testMessage = "Test";
 
-            using var server = new BasicTcpServer(8888);
+            using var server = new FlareTcpServer(8888);
             server.MessageReceived += (_, message) => {
                 var decoded = encoding.GetString(message);
                 Assert.AreEqual(testMessage, decoded);
@@ -98,7 +97,7 @@ namespace Basic.Tcp.Test {
             };
             _ = Task.Run(() => server.Listen());
 
-            using var client = new BasicTcpClient();
+            using var client = new FlareTcpClient();
             client.Connect(new IPEndPoint(IPAddress.Loopback, 8888));
             client.SendMessage(encoding.GetBytes(testMessage));
 
@@ -114,13 +113,13 @@ namespace Basic.Tcp.Test {
             var encoding = Encoding.UTF8;
             const string testMessage = "Test";
 
-            using var server = new BasicTcpServer(8888);
+            using var server = new FlareTcpServer(8888);
             server.ClientConnected += clientId => {
                 server.EnqueueMessage(clientId, encoding.GetBytes(testMessage));
             };
             _ = Task.Run(() => server.ListenAsync());
 
-            using var client = new BasicTcpClient();
+            using var client = new FlareTcpClient();
             client.MessageReceived += message => {
                 var decoded = encoding.GetString(message);
                 Assert.AreEqual(testMessage, decoded);
@@ -141,13 +140,13 @@ namespace Basic.Tcp.Test {
             var encoding = Encoding.UTF8;
             const string testMessage = "Test";
 
-            using var server = new BasicTcpServer(8888);
+            using var server = new FlareTcpServer(8888);
             server.ClientConnected += clientId => {
                 server.EnqueueMessage(clientId, encoding.GetBytes(testMessage));
             };
             _ = Task.Run(() => server.Listen());
 
-            using var client = new BasicTcpClient();
+            using var client = new FlareTcpClient();
             client.MessageReceived += message => {
                 var decoded = encoding.GetString(message);
                 Assert.AreEqual(testMessage, decoded);
@@ -167,7 +166,7 @@ namespace Basic.Tcp.Test {
             const int messageCount = 100;
             const int clientCount = 5;
 
-            using var server = new BasicTcpServer(8888);
+            using var server = new FlareTcpServer(8888);
             server.MessageReceived += (clientId, message) => {
                 // TestContext.WriteLine("server received");
                 server.EnqueueMessage(clientId, message.ToArray());
@@ -179,7 +178,7 @@ namespace Basic.Tcp.Test {
             for (var i=0; i<taskList.Length; i++) {
                 taskList[i] = Task.Run(async () => {
                     using var messageCountdown = new CountdownEvent(messageCount);
-                    using var client = new BasicTcpClient();
+                    using var client = new FlareTcpClient();
                     await client.ConnectAsync(IPAddress.Loopback, 8888);
                     client.MessageReceived += _ => {
                         // TestContext.WriteLine("client received");
@@ -205,7 +204,7 @@ namespace Basic.Tcp.Test {
             const int messageCount = 100;
             const int clientCount = 5;
 
-            using var server = new BasicTcpServer(8888);
+            using var server = new FlareTcpServer(8888);
             server.MessageReceived += (clientId, message) => {
                 // TestContext.WriteLine("server received");
                 server.EnqueueMessage(clientId, message.ToArray());
@@ -217,7 +216,7 @@ namespace Basic.Tcp.Test {
             for (var i = 0; i < taskList.Length; i++) {
                 taskList[i] = Task.Run(() => {
                     using var messageCountdown = new CountdownEvent(messageCount);
-                    using var client = new BasicTcpClient();
+                    using var client = new FlareTcpClient();
                     client.Connect(IPAddress.Loopback, 8888);
                     client.MessageReceived += _ => {
                         // TestContext.WriteLine("client received");
@@ -238,13 +237,12 @@ namespace Basic.Tcp.Test {
             server.Stop();
         }
 
-
         [Test]
         public static async Task MultipleSimultaneousClientReadsFail() {
-            using var server = new BasicTcpServer(8888);
+            using var server = new FlareTcpServer(8888);
             _ = Task.Run(() => server.ListenAsync());
 
-            using var client = new BasicTcpClient();
+            using var client = new FlareTcpClient();
             await client.ConnectAsync(new IPEndPoint(IPAddress.Loopback, 8888));
 
             var read1 = Task.Run(() => client.ReadMessagesAsync());
@@ -262,7 +260,7 @@ namespace Basic.Tcp.Test {
 
         [Test]
         public static async Task MultipleSimultaneousClientConnectsFail() {
-            using var client = new BasicTcpClient();
+            using var client = new FlareTcpClient();
 
             using var barrier = new Barrier(2);
             var connect1 = Task.Run(async () => {
@@ -278,6 +276,38 @@ namespace Basic.Tcp.Test {
             Assert.IsTrue(first.IsFaulted);
             Assert.IsInstanceOf<InvalidOperationException>(first.Exception.GetBaseException());
             Assert.IsFalse(second.IsFaulted);
+        }
+
+
+        [Test]
+        public static void CanReuseServerAndClient() {
+            using var messageReceivedEvent = new ManualResetEventSlim(false);
+
+            using var server = new FlareTcpServer(8888);
+            server.MessageReceived += (clientId, message) => {
+                server.EnqueueMessage(clientId, message.ToArray());
+            };
+
+            using var client = new FlareTcpClient();
+            client.MessageReceived += _ => {
+                messageReceivedEvent.Set();
+            };
+
+            for(var i=0; i<5; i++) {
+                var listenTask = Task.Run(() => {
+                    server.Listen();
+                });
+                client.Connect(new IPEndPoint(IPAddress.Loopback, 8888));
+                client.SendMessage(new byte[] { 1, 2, 3, 4 });
+                client.ReadMessage();
+                Assert.IsTrue(messageReceivedEvent.Wait(TimeSpan.FromSeconds(50)));
+
+                client.Disconnect();
+                server.Stop();
+
+                messageReceivedEvent.Reset();
+                listenTask.Wait();
+            }
         }
     }
 }

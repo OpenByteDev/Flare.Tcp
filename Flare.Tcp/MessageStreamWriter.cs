@@ -4,10 +4,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Basic.Tcp {
-    internal class MessageStreamWriter {
-
-        public delegate void MessageHandler(Span<byte> message);
+namespace Flare.Tcp {
+    public class MessageStreamWriter {
         private const int HeaderLength = sizeof(int);
 
         /// <summary>

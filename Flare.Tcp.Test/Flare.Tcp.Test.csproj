@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -14,11 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.12.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Basic.Tcp\Basic.Tcp.csproj" />
+    <ProjectReference Include="..\Flare.Tcp\Flare.Tcp.csproj" />
+    <PackageReference Include="nunit" Version="3.12.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.0.0-alpha.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.0-preview-20201020-06" />
   </ItemGroup>
 
 </Project>

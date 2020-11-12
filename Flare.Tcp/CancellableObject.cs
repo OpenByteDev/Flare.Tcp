@@ -1,17 +1,24 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
-namespace Basic.Tcp {
-    public class BasicTcpSocket : IDisposable {
+namespace Flare.Tcp {
+    public class CancellableObject : IDisposable {
 
-
-        protected internal CancellationTokenSource? _cancellationTokenSource;
+        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         protected internal CancellationToken CancellationToken => _cancellationTokenSource?.Token ?? CancellationToken.None;
 
         protected CancellationToken GetLinkedCancellationToken(CancellationToken cancellationToken) {
             if (!cancellationToken.CanBeCanceled)
                 return CancellationToken;
             return CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, CancellationToken).Token;
+        }
+
+        [MemberNotNull(nameof(_cancellationTokenSource))]
+        protected void ResetCancellationToken() {
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = new CancellationTokenSource();
         }
 
         public virtual void Dispose() {

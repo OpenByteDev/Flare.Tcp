@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
 using System.Threading;
 
-namespace Basic.Tcp.Extensions {
+namespace Flare.Tcp.Extensions {
     public static class ArrayPoolExtensions {
 
         public static void ReturnAndSetNull<T>(this ArrayPool<T> arrayPool, ref T[]? rented) {

@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Threading;
 
-namespace Basic.Tcp {
+namespace Flare.Tcp {
     internal class ThreadSafeGuard {
         private const int Inactive = default;
         private const int Active = 1;
         private int _state;
 
-        public ThreadSafeGuard(bool active) {
+        public ThreadSafeGuard(bool active = false) {
             _state = active ? Active : Inactive;
         }
         public IDisposable? Use() {

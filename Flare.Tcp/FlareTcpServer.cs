@@ -1,22 +1,26 @@
-﻿using Basic.Tcp.Extensions;
+﻿using Flare.Tcp.Extensions;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Basic.Tcp {
-    public class BasicTcpServer : BasicTcpSocket {
-
-        private readonly TcpListener _listener;
-        private readonly ConcurrentDictionary<long, ClientToken> _clients;
+namespace Flare.Tcp {
+    public class FlareTcpServer : CancellableObject {
+        private TcpListener? _listener;
+        private readonly ConcurrentDictionary<long, ClientToken> _clients = new ConcurrentDictionary<long, ClientToken>();
+        private readonly ThreadSafeGuard _listenGuard = new ThreadSafeGuard();
         private long _nextClientId /* = 0 */;
 
-        public bool IsRunning { get; private set; } /* = false; */
-        public bool IsStopped => !IsRunning;
-        public int ClientCount => _clients.Count;
+        public bool IsListening => _listenGuard.Get();
+        public bool IsStopped => !IsListening;
+        public int ConnectedClients => _clients.Count;
+        public IPEndPoint LocalEndPoint { get; }
+        public bool DualMode { get; } /* = false; */
 
         public event MessageReceivedEventHandler? MessageReceived;
         public delegate void MessageReceivedEventHandler(long clientId, Span<byte> message);
@@ -27,12 +31,23 @@ namespace Basic.Tcp {
         public event ClientDisconnectedEventHandler? ClientDisconnected;
         public delegate void ClientDisconnectedEventHandler(long clientId);
 
-        public BasicTcpServer(int port) : this(TcpListener.Create(port)) { }
-        public BasicTcpServer(IPAddress localAddress, int port) : this(new TcpListener(localAddress, port)) { }
-        public BasicTcpServer(IPEndPoint localEndPoint) : this(new TcpListener(localEndPoint)) { }
-        private BasicTcpServer(TcpListener listener) {
-            _listener = listener;
-            _clients = new ConcurrentDictionary<long, ClientToken>();
+        public FlareTcpServer(int port) {
+            // from TcpListener.Create
+            if (Socket.OSSupportsIPv6) {
+                // If OS supports IPv6 use dual mode so both address families work.
+                LocalEndPoint = new IPEndPoint(IPAddress.IPv6Any, port);
+                DualMode = true;
+            } else {
+                // If not, fall-back to old IPv4.
+                LocalEndPoint = new IPEndPoint(IPAddress.Any, port);
+                DualMode = false;
+            }
+        }
+        public FlareTcpServer(IPAddress localAddress, int port) {
+            LocalEndPoint = new IPEndPoint(localAddress, port);
+        }
+        public FlareTcpServer(IPEndPoint localEndPoint) {
+            LocalEndPoint = localEndPoint;
         }
 
         protected virtual void OnMessageReceived(long clientId, Span<byte> message) {
@@ -48,40 +63,52 @@ namespace Basic.Tcp {
         }
 
         public async Task ListenAsync(CancellationToken cancellationToken = default) {
-            EnsureStopped();
-            IsRunning = true;
+            using var token = StartListening();
 
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
-            _listener.Start();
 
-            while (IsRunning && !linkedToken.IsCancellationRequested) {
+            SetupAndStartListener();
+
+            while (IsListening && !linkedToken.IsCancellationRequested) {
                 var socket = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
-                var clientId = GetAndIncrementNextClientId();
-                var client = new ClientToken(clientId, socket);
-                _clients.TryAdd(clientId, client);
-                OnClientConnected(clientId);
-                HandleClient(client);
+                OnClientAccepted(socket);
             }
         }
 
         public void Listen() {
-            EnsureStopped();
-            IsRunning = true;
+            using var token = StartListening();
 
-            _listener.Start();
+            SetupAndStartListener();
 
-            while (IsRunning && !CancellationToken.IsCancellationRequested) {
-                var socket = _listener.AcceptTcpClient();
-                var clientId = GetAndIncrementNextClientId();
-                var client = new ClientToken(clientId, socket);
-                _clients.TryAdd(clientId, client);
-                OnClientConnected(clientId);
-                HandleClient(client);
+            while (IsListening && !CancellationToken.IsCancellationRequested) {
+                try {
+                    var socket = _listener.AcceptTcpClient();
+                    OnClientAccepted(socket);
+                } catch (SocketException e) when (e.SocketErrorCode == SocketError.Interrupted) {
+                    return;
+                } catch (ObjectDisposedException) when (CancellationToken.IsCancellationRequested) {
+                    return;
+                }
             }
+        }
+
+        [MemberNotNull(nameof(_listener))]
+        private void SetupAndStartListener() {
+            _listener = new TcpListener(LocalEndPoint);
+            _listener.Server.DualMode = DualMode;
+            _listener.Start();
         }
 
         protected long GetNextClientId() => _nextClientId;
         protected long GetAndIncrementNextClientId() => Interlocked.Increment(ref _nextClientId) - 1;
+
+        protected virtual void OnClientAccepted(TcpClient socket) {
+            var clientId = GetAndIncrementNextClientId();
+            var client = new ClientToken(clientId, socket);
+            Debug.Assert(_clients.TryAdd(clientId, client), "Client id already used when it should not.");
+            OnClientConnected(clientId);
+            HandleClient(client);
+        }
 
         private void HandleClient(ClientToken client) {
             var clientCancellationTokenSource = new CancellationTokenSource();
@@ -120,9 +147,21 @@ namespace Basic.Tcp {
                 // dispose resources
                 clientCancellationTokenSource.Dispose();
                 client.Dispose();
+                stream.Close();
                 stream.Dispose();
             });
         }
+
+        public void DisconnectClient(long clientId) {
+            var client = GetClientToken(clientId);
+            DisconnectClient(client);
+        }
+        private void DisconnectClient(ClientToken client) {
+            _clients.TryRemove(client.Id);
+            client.Close();
+            client.Dispose();
+        }
+
 
         public void EnqueueMessage(long clientId, ReadOnlyMemory<byte> message) {
             var client = GetClientToken(clientId);
@@ -146,26 +185,31 @@ namespace Basic.Tcp {
         }
 
         public void Stop() {
-            EnsureRunning();
-            IsRunning = false;
+            EnsureListening();
 
-            _listener.Stop();
-            _cancellationTokenSource?.Cancel();
-            _cancellationTokenSource?.Dispose();
+            _listener!.Stop();
+            _listener = null;
+            _listenGuard.Unset();
 
             foreach (var client in _clients.Values) {
-                client.Socket.Close();
+                client.Close();
                 client.Dispose();
             }
             _clients.Clear();
+
+            ResetCancellationToken();
         }
 
-        protected void EnsureRunning() {
+        private IDisposable StartListening() {
+            EnsureStopped();
+            return _listenGuard.UseOrThrow(() => new InvalidOperationException("The server is already listening."));
+        }
+        protected void EnsureListening() {
             if (IsStopped)
                 throw new InvalidOperationException("Server is not running.");
         }
         protected void EnsureStopped() {
-            if (IsRunning)
+            if (IsListening)
                 throw new InvalidOperationException("Server is already running.");
         }
         private ClientToken GetClientToken(long clientId) {
@@ -175,10 +219,10 @@ namespace Basic.Tcp {
         }
 
         public override void Dispose() {
-            base.Dispose();
-
-            if (IsRunning)
+            if (IsListening)
                 Stop();
+
+            base.Dispose();
         }
 
         private class ClientToken : IDisposable {
@@ -199,9 +243,13 @@ namespace Basic.Tcp {
                 PendingMessageEvent.Set();
             }
 
+            public void Close() {
+                Socket.Close();
+            }
+
             public void Dispose() {
-                Socket?.Dispose();
-                PendingMessageEvent?.Dispose();
+                Socket.Dispose();
+                PendingMessageEvent.Dispose();
             }
         }
     }

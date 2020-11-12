@@ -1,4 +1,4 @@
-﻿using Basic.Tcp.Extensions;
+﻿using Flare.Tcp.Extensions;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
@@ -6,10 +6,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Basic.Tcp {
-    internal class MessageStreamReader : IDisposable {
-
-        public delegate void MessageHandler(Span<byte> message);
+namespace Flare.Tcp {
+    public class MessageStreamReader : IDisposable {
         private const int HeaderLength = sizeof(int);
 
         /// <summary>

@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Basic.Tcp.Extensions {
+namespace Flare.Tcp.Extensions {
     internal static class StreamExtensions {
 
         public static void ReadExact(this Stream stream, Span<byte> buffer) {

@@ -1,7 +1,7 @@
 ﻿using BenchmarkDotNet.Running;
 using System;
 
-namespace Basic.Tcp.Benchmark {
+namespace Flare.Tcp.Benchmark {
     public static class Program {
         public static void Main() {
             BenchmarkRunner.Run<MessageRoundtripSyncBenchmark>();
