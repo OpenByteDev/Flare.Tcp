@@ -1,4 +1,4 @@
-# <img src="./icon.png" height="40px" style="margin-top: -13px" /> Flare.Tcp
+# <img src="./icon.png" height="40px" /> Flare.Tcp
 
 [![nuget badge](https://badgen.net/nuget/v/Flare.Tcp)](https://www.nuget.org/packages/Flare.Tcp/)
 [![Unlicense](https://img.shields.io/github/license/OpenByteDev/Flare.Tcp)](./UNLICENSE)
