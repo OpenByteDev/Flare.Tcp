@@ -95,7 +95,11 @@ namespace Flare.Tcp {
         [MemberNotNull(nameof(_listener))]
         private void SetupAndStartListener() {
             _listener = new TcpListener(LocalEndPoint);
-            _listener.Server.DualMode = DualMode;
+
+            // setting DualMode to false on a socket with an IPv4 address will throw.
+            if (DualMode)
+                _listener.Server.DualMode = DualMode;
+
             _listener.Start();
         }
 
@@ -105,7 +109,8 @@ namespace Flare.Tcp {
         protected virtual void OnClientAccepted(TcpClient socket) {
             var clientId = GetAndIncrementNextClientId();
             var client = new ClientToken(clientId, socket);
-            Debug.Assert(_clients.TryAdd(clientId, client), "Client id already used when it should not.");
+            if (!_clients.TryAdd(clientId, client))
+                throw new Exception("Client id already used when it should not.");
             OnClientConnected(clientId);
             HandleClient(client);
         }
