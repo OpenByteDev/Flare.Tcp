@@ -10,9 +10,6 @@ namespace Flare.Tcp.Benchmark {
         private FlareTcpClient client;
         private byte[] data;
 
-        [Params(1, 10, 100)]
-        public int MessageCount;
-
         [Params(1, 1_000, 1_000_000)]
         public int MessageBytes;
 
@@ -33,10 +30,8 @@ namespace Flare.Tcp.Benchmark {
 
         [Benchmark]
         public void MessageRoundtrip() {
-            for (var i = 0; i < MessageCount; i++) {
-                client.SendMessage(data);
-                client.ReadMessage();
-            }
+            client.SendMessage(data);
+            client.ReadMessage();
         }
 
         [GlobalCleanup]

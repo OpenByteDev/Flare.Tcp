@@ -10,9 +10,6 @@ namespace Flare.Tcp.Benchmark {
         private FlareTcpClient client;
         private byte[] data;
 
-        [Params(1, 10, 100)]
-        public int MessageCount;
-
         [Params(1, 1_000, 1_000_000)]
         public int MessageBytes;
 
@@ -33,10 +30,8 @@ namespace Flare.Tcp.Benchmark {
 
         [Benchmark]
         public async Task MessageRoundtrip() {
-            for (var i = 0; i < MessageCount; i++) {
-                await client.SendMessageAsync(data).ConfigureAwait(false);
-                await client.ReadMessageAsync().ConfigureAwait(false);
-            }
+            await client.SendMessageAsync(data).ConfigureAwait(false);
+            await client.ReadMessageAsync().ConfigureAwait(false);
         }
 
         [GlobalCleanup]
