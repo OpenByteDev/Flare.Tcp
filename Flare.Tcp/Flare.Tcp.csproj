@@ -3,22 +3,23 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <Nullable>Enable</Nullable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <AnalysisLevel>Preview</AnalysisLevel>
   </PropertyGroup>
   
   <PropertyGroup>
     <Company>OpenByte</Company>
-    <Product>OpenByte</Product>
+    <Authors>OpenByte</Authors>
+    <Product>Flare.Tcp</Product>
+    <PackageId>Flare.Tcp</PackageId>
     <Description>A basic multi-client message-based event-driven tcp server (and client).</Description>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/OpenByteDev/Flare.Tcp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/OpenByteDev/Flare.Tcp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>tcp,server,client,networking,simple,async,sync,event-based,message-driven</PackageTags>
-    <AnalysisLevel>preview</AnalysisLevel>
     <Version>2.0.0</Version>
-    <PackageId>Flare.Tcp</PackageId>
-    <Authors>Flare.Tcp</Authors>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
