@@ -43,9 +43,7 @@ namespace Flare.Tcp {
                 DualMode = false;
             }
         }
-        public FlareTcpServer(IPAddress localAddress, int port) {
-            LocalEndPoint = new IPEndPoint(localAddress, port);
-        }
+        public FlareTcpServer(IPAddress localAddress, int port) : this(new IPEndPoint(localAddress, port)) { }
         public FlareTcpServer(IPEndPoint localEndPoint) {
             LocalEndPoint = localEndPoint;
         }
@@ -70,8 +68,12 @@ namespace Flare.Tcp {
             SetupAndStartListener();
 
             while (IsListening && !linkedToken.IsCancellationRequested) {
-                var socket = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
-                OnClientAccepted(socket);
+                try {
+                    var socket = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                    OnClientAccepted(socket);
+                } catch (ObjectDisposedException) when (linkedToken.IsCancellationRequested) {
+                    return;
+                }
             }
         }
 
@@ -126,7 +128,7 @@ namespace Flare.Tcp {
                 using var reader = new MessageStreamReader(stream);
                 while (socket.Connected && !linkedToken.IsCancellationRequested)
                     OnMessageReceived(client.Id, reader.ReadMessage());
-            }, linkedToken, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+            }, linkedToken, TaskCreationOptions.LongRunning);
 
             var writeTask = Task.Factory.StartNew(() => {
                 var writer = new MessageStreamWriter(stream);
@@ -139,7 +141,7 @@ namespace Flare.Tcp {
                     while (client.PendingMessages.TryDequeue(out var message))
                         writer.WriteMessage(message.Span);
                 }
-            }, linkedToken, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+            }, linkedToken, TaskCreationOptions.LongRunning);
 
             Task.WhenAny(readTask, writeTask).ContinueWith(_ => {
                 // handle client disconnect or failure
@@ -166,7 +168,6 @@ namespace Flare.Tcp {
             client.Close();
             client.Dispose();
         }
-
 
         public void EnqueueMessage(long clientId, ReadOnlyMemory<byte> message) {
             var client = GetClientToken(clientId);
@@ -197,7 +198,7 @@ namespace Flare.Tcp {
             _listenGuard.Unset();
 
             foreach (var client in _clients.Values) {
-                client.Close();
+                // client.Close();
                 client.Dispose();
             }
             _clients.Clear();

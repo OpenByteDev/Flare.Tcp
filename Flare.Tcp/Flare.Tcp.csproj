@@ -22,7 +22,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
-    <Optimize>True</Optimize>
+    <Optimize>FALSE</Optimize>
   </PropertyGroup>
 
 
