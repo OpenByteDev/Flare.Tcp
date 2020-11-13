@@ -1,9 +1,11 @@
-# Flare.Tcp
+# <img src="./icon.png" height="40px" style="margin-top: -13px" /> Flare.Tcp
 
 [![nuget badge](https://badgen.net/nuget/v/Flare.Tcp)](https://www.nuget.org/packages/Flare.Tcp/)
 [![Unlicense](https://img.shields.io/github/license/OpenByteDev/Flare.Tcp)](./UNLICENSE)
 
 A basic multi-client message-based event-driven tcp server (and client) that supports. 
+
+
 
 ## Using the FlareTcpServer
 
@@ -52,3 +54,6 @@ await client.ReadMessageAsync();
 client.Disconnect();
 ```
 
+## Icon
+
+Icon made by <a href="https://www.flaticon.com/authors/smashicons" title="Smashicons">Smashicons</a> from <a href="https://www.flaticon.com/" title="Flaticon"> www.flaticon.com</a>
