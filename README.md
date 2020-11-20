@@ -3,7 +3,7 @@
 [![nuget badge](https://badgen.net/nuget/v/Flare.Tcp)](https://www.nuget.org/packages/Flare.Tcp/)
 [![Unlicense](https://img.shields.io/github/license/OpenByteDev/Flare.Tcp)](./UNLICENSE)
 
-A basic multi-client message-based event-driven tcp server (and client) that supports. 
+A basic multi-client message-based event-driven tcp server (and client). 
 
 
 

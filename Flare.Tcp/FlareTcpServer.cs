@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
@@ -12,8 +11,8 @@ using System.Threading.Tasks;
 namespace Flare.Tcp {
     public class FlareTcpServer : CancellableObject {
         private TcpListener? _listener;
-        private readonly ConcurrentDictionary<long, ClientToken> _clients = new ConcurrentDictionary<long, ClientToken>();
-        private readonly ThreadSafeGuard _listenGuard = new ThreadSafeGuard();
+        private readonly ConcurrentDictionary<long, ClientToken> _clients = new();
+        private readonly ThreadSafeGuard _listenGuard = new();
         private long _nextClientId /* = 0 */;
 
         public bool IsListening => _listenGuard.Get();
@@ -62,7 +61,6 @@ namespace Flare.Tcp {
 
         public async Task ListenAsync(CancellationToken cancellationToken = default) {
             using var token = StartListening();
-
             var linkedToken = GetLinkedCancellationToken(cancellationToken);
 
             SetupAndStartListener();
@@ -70,8 +68,10 @@ namespace Flare.Tcp {
             while (IsListening && !linkedToken.IsCancellationRequested) {
                 try {
                     var socket = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
-                    OnClientAccepted(socket);
+                    AcceptClient(socket);
                 } catch (ObjectDisposedException) when (linkedToken.IsCancellationRequested) {
+                    return;
+                } catch (SocketException e) when (e.SocketErrorCode == SocketError.Interrupted || e.SocketErrorCode == SocketError.OperationAborted) {
                     return;
                 }
             }
@@ -85,8 +85,8 @@ namespace Flare.Tcp {
             while (IsListening && !CancellationToken.IsCancellationRequested) {
                 try {
                     var socket = _listener.AcceptTcpClient();
-                    OnClientAccepted(socket);
-                } catch (SocketException e) when (e.SocketErrorCode == SocketError.Interrupted) {
+                    AcceptClient(socket);
+                } catch (SocketException e) when (e.SocketErrorCode == SocketError.Interrupted || e.SocketErrorCode == SocketError.OperationAborted) {
                     return;
                 } catch (ObjectDisposedException) when (CancellationToken.IsCancellationRequested) {
                     return;
@@ -108,7 +108,7 @@ namespace Flare.Tcp {
         protected long GetNextClientId() => _nextClientId;
         protected long GetAndIncrementNextClientId() => Interlocked.Increment(ref _nextClientId) - 1;
 
-        protected virtual void OnClientAccepted(TcpClient socket) {
+        protected virtual void AcceptClient(TcpClient socket) {
             var clientId = GetAndIncrementNextClientId();
             var client = new ClientToken(clientId, socket);
             if (!_clients.TryAdd(clientId, client))
@@ -124,24 +124,25 @@ namespace Flare.Tcp {
             var socket = client.Socket;
             var stream = socket.GetStream();
 
-            var readTask = Task.Factory.StartNew(() => {
+            var readTask = TaskUtils.StartLongRunning(() => {
                 using var reader = new MessageStreamReader(stream);
                 while (socket.Connected && !linkedToken.IsCancellationRequested)
                     OnMessageReceived(client.Id, reader.ReadMessage());
-            }, linkedToken, TaskCreationOptions.LongRunning);
+            }, linkedToken);
 
-            var writeTask = Task.Factory.StartNew(() => {
+            var writeTask = TaskUtils.StartLongRunning(() => {
                 var writer = new MessageStreamWriter(stream);
                 while (socket.Connected && !linkedToken.IsCancellationRequested) {
                     // wait for new packets.
-                    client.PendingMessageEvent.Wait(linkedToken);
-                    client.PendingMessageEvent.Reset();
+                    client.PendingMessages.Wait(linkedToken);
 
                     // write queued message to stream
-                    while (client.PendingMessages.TryDequeue(out var message))
-                        writer.WriteMessage(message.Span);
+                    while (client.PendingMessages.TryDequeue(out var message)) {
+                        writer.WriteMessage(message.MessageContent.Span);
+                        message.SendTask?.TrySetResult();
+                    }
                 }
-            }, linkedToken, TaskCreationOptions.LongRunning);
+            }, linkedToken);
 
             Task.WhenAny(readTask, writeTask).ContinueWith(_ => {
                 // handle client disconnect or failure
@@ -150,28 +151,41 @@ namespace Flare.Tcp {
 
                 // ensure both tasks complete
                 clientCancellationTokenSource.Cancel();
-
-                // dispose resources
                 clientCancellationTokenSource.Dispose();
+            }, TaskContinuationOptions.RunContinuationsAsynchronously);
+
+            Task.WhenAll(readTask, writeTask).ContinueWith(_ => {
+                // dispose resources
+                client.Close();
                 client.Dispose();
                 stream.Close();
                 stream.Dispose();
-            });
+            }, TaskContinuationOptions.RunContinuationsAsynchronously);
         }
 
-        public void DisconnectClient(long clientId) {
+        public bool DisconnectClient(long clientId) {
             var client = GetClientToken(clientId);
-            DisconnectClient(client);
+            return DisconnectClient(client);
         }
-        private void DisconnectClient(ClientToken client) {
-            _clients.TryRemove(client.Id);
+        private bool DisconnectClient(ClientToken client) {
+            if (!_clients.TryRemove(client.Id))
+                return false;
             client.Close();
             client.Dispose();
+            return true;
+        }
+
+        public Task EnqueueMessageAndWaitAsync(long clientId, ReadOnlyMemory<byte> message) {
+            var client = GetClientToken(clientId);
+            return client.EnqueueMessageAndWaitAsync(message);
+        }
+        public void EnqueueMessageAndWait(long clientId, ReadOnlyMemory<byte> message) {
+            var client = GetClientToken(clientId);
+            client.EnqueueMessageAndWait(message);
         }
 
         public void EnqueueMessage(long clientId, ReadOnlyMemory<byte> message) {
             var client = GetClientToken(clientId);
-
             client.EnqueueMessage(message);
         }
         public void EnqueueMessages(long clientId, IEnumerable<ReadOnlyMemory<byte>> messages) {
@@ -197,10 +211,6 @@ namespace Flare.Tcp {
             _listener = null;
             _listenGuard.Unset();
 
-            foreach (var client in _clients.Values) {
-                // client.Close();
-                client.Dispose();
-            }
             _clients.Clear();
 
             ResetCancellationToken();
@@ -234,28 +244,29 @@ namespace Flare.Tcp {
         private class ClientToken : IDisposable {
             public readonly TcpClient Socket;
             public readonly long Id;
-            public readonly ConcurrentQueue<ReadOnlyMemory<byte>> PendingMessages;
-            public readonly ManualResetEventSlim PendingMessageEvent;
-
+            public readonly MultiProducerSingleConsumerQueue<PendingMessage> PendingMessages = new();
             public ClientToken(long clientId, TcpClient socket) {
                 Socket = socket;
                 Id = clientId;
-                PendingMessages = new ConcurrentQueue<ReadOnlyMemory<byte>>();
-                PendingMessageEvent = new ManualResetEventSlim(false);
             }
 
-            public void EnqueueMessage(ReadOnlyMemory<byte> message) {
-                PendingMessages.Enqueue(message);
-                PendingMessageEvent.Set();
+            public void EnqueueMessageAndWait(ReadOnlyMemory<byte> message) {
+                EnqueueMessageAndWaitAsync(message).WaitAndUnwrap();
+            }
+            public Task EnqueueMessageAndWaitAsync(ReadOnlyMemory<byte> message) {
+                var (pending, taskSource) = PendingMessage.CreateWithWait(message);
+                EnqueueMessage(in pending);
+                return taskSource.Task;
             }
 
-            public void Close() {
-                Socket.Close();
-            }
+            public void EnqueueMessage(ReadOnlyMemory<byte> message) => EnqueueMessage(PendingMessage.Create(message));
+            private void EnqueueMessage(in PendingMessage message) => PendingMessages.Enqueue(message);
+
+            public void Close() => Socket.Close();
 
             public void Dispose() {
                 Socket.Dispose();
-                PendingMessageEvent.Dispose();
+                PendingMessages.Dispose();
             }
         }
     }

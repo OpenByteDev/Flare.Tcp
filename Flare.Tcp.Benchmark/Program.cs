@@ -1,11 +1,16 @@
-﻿using BenchmarkDotNet.Running;
+﻿using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Diagnosers;
+using BenchmarkDotNet.Running;
 using System;
 
 namespace Flare.Tcp.Benchmark {
     public static class Program {
         public static void Main() {
-            BenchmarkRunner.Run<MessageRoundtripSyncBenchmark>();
-            BenchmarkRunner.Run<MessageRoundtripAsyncBenchmark>();
+            var config = DefaultConfig.Instance
+                .AddDiagnoser(MemoryDiagnoser.Default)
+                .AddDiagnoser(ThreadingDiagnoser.Default);
+            BenchmarkRunner.Run<MessageRoundtripBenchmark>(config);
+
             Console.Read();
         }
     }

@@ -10,6 +10,15 @@ namespace Flare.Tcp {
         public ThreadSafeGuard(bool active = false) {
             _state = active ? Active : Inactive;
         }
+
+        public bool GetAndSet() => Interlocked.Exchange(ref _state, Active) == Inactive;
+        public bool Get() => _state == Active;
+        public void Unset() => _state = Inactive;
+
+        public void SetOrThrow() {
+            if (!GetAndSet())
+                throw new InvalidOperationException("The guard is already in use.");
+        }
         public IDisposable? Use() {
             if (GetAndSet())
                 return new ThreadSafeGuardToken(this);
@@ -22,12 +31,12 @@ namespace Flare.Tcp {
             else
                 throw exceptionSupplier();
         }
+        public IDisposable UseOrThrow() {
+            SetOrThrow();
+            return new ThreadSafeGuardToken(this);
+        }
 
-        public bool GetAndSet() => Interlocked.Exchange(ref _state, Active) == Inactive;
-        public bool Get() => _state == Active;
-        public void Unset() => _state = Inactive;
-
-        internal struct ThreadSafeGuardToken : IDisposable {
+        internal readonly struct ThreadSafeGuardToken : IDisposable {
             private readonly ThreadSafeGuard _guard;
 
             public ThreadSafeGuardToken(ThreadSafeGuard threadSafeGuard) {
