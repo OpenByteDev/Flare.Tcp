@@ -1,0 +1,7 @@
+﻿[*.cs]
+
+# RCS1021: Convert lambda expression body to expression-body.
+dotnet_diagnostic.RCS1021.severity = silent
+
+# RCS1001: Add braces (when expression spans over multiple lines).
+dotnet_diagnostic.RCS1001.severity = silent

@@ -19,19 +19,19 @@ namespace Flare.Tcp {
             if (!GetAndSet())
                 throw new InvalidOperationException("The guard is already in use.");
         }
-        public IDisposable? Use() {
+        public ThreadSafeGuardToken? Use() {
             if (GetAndSet())
                 return new ThreadSafeGuardToken(this);
             else
                 return null;
         }
-        public IDisposable UseOrThrow(Func<Exception> exceptionSupplier) {
+        public ThreadSafeGuardToken UseOrThrow(Func<Exception> exceptionSupplier) {
             if (GetAndSet())
                 return new ThreadSafeGuardToken(this);
             else
                 throw exceptionSupplier();
         }
-        public IDisposable UseOrThrow() {
+        public ThreadSafeGuardToken UseOrThrow() {
             SetOrThrow();
             return new ThreadSafeGuardToken(this);
         }

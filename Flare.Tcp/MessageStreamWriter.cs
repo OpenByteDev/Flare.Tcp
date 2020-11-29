@@ -9,7 +9,7 @@ namespace Flare.Tcp {
         private const int HeaderLength = sizeof(int);
 
         /// <summary>
-        /// Holds the underlying stream used for read and write operations.
+        /// Gets the underlying stream used for read and write operations.
         /// </summary>
         public Stream Stream { get; }
 
@@ -42,6 +42,5 @@ namespace Flare.Tcp {
             // flush stream
             Stream.Flush();
         }
-
     }
 }

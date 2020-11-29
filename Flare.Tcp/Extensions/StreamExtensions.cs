@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 
 namespace Flare.Tcp.Extensions {
     internal static class StreamExtensions {
-
         public static void ReadExact(this Stream stream, Span<byte> buffer) {
             if (!stream.TryReadExact(buffer))
                 throw new EndOfStreamException();
@@ -40,6 +39,5 @@ namespace Flare.Tcp.Extensions {
                 buffer = buffer[read..];
             }
         }
-
     }
 }

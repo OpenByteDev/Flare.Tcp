@@ -1,28 +1,37 @@
-﻿using System;
+﻿using Microsoft.Toolkit.HighPerformance.Buffers;
+using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using static Flare.Tcp.ThreadSafeGuard;
 
 namespace Flare.Tcp {
     public class FlareTcpClient : FlareTcpClientBase {
         private NetworkStream? _networkStream;
         private MessageStreamReader? _messageReader;
         private MessageStreamWriter? _messageWriter;
-        private readonly ThreadSafeGuard _readGuard;
-        private readonly ThreadSafeGuard _writeGuard;
+        private readonly ThreadSafeGuard _readGuard = new();
+        private readonly ThreadSafeGuard _writeGuard = new();
 
-        public FlareTcpClient() {
-            _readGuard = new ThreadSafeGuard();
-            _writeGuard = new ThreadSafeGuard();
+        public FlareTcpClient() { }
+        internal FlareTcpClient(TcpClient client) : base(client) {
+            OnConnected();
         }
 
         protected override void OnConnected() {
             base.OnConnected();
 
-            // Client!.Client.Blocking = true;
             _networkStream = Client!.GetStream();
             _messageReader = new MessageStreamReader(_networkStream);
             _messageWriter = new MessageStreamWriter(_networkStream);
+        }
+
+        public MessageStreamReader? GetMessageReader() {
+            return _messageReader;
+        }
+        public MessageStreamWriter? GetMessageWriter() {
+            return _messageWriter;
         }
 
         public void WriteMessage(ReadOnlySpan<byte> message) {
@@ -34,25 +43,39 @@ namespace Flare.Tcp {
             await _messageWriter!.WriteMessageAsync(message, cancellationToken).ConfigureAwait(false);
         }
 
-        public Span<byte> ReadNextMessage() {
+        public MemoryOwner<byte> ReadNextMessage() {
             using var readToken = StartReading();
             return _messageReader!.ReadMessage();
         }
-        public bool TryReadNextMessage(out Span<byte> message) {
+        public SpanOwner<byte> ReadNextMessageIntoSpan() {
+            using var readToken = StartReading();
+            return _messageReader!.ReadMessageIntoSpan();
+        }
+        public bool TryReadNextMessage([NotNullWhen(true)] out MemoryOwner<byte>? message) {
             using var readToken = StartReading();
             return _messageReader!.TryReadMessage(out message);
         }
-        public async Task ReadNextMessageAsync(SpanAction<byte> messageHandler, CancellationToken cancellationToken = default) {
+        public MemoryOwner<byte>? TryReadNextMessage() {
             using var readToken = StartReading();
-            var linkedToken = GetLinkedCancellationToken(cancellationToken);
-            await _messageReader!.ReadMessageAsync(messageHandler, linkedToken).ConfigureAwait(false);
+            return _messageReader!.TryReadMessage();
         }
 
-        private IDisposable StartReading() {
+        public async Task<MemoryOwner<byte>> ReadNextMessageAsync(CancellationToken cancellationToken = default) {
+            using var readToken = StartReading();
+            // we need to await here because otherwise the token would immediately be disposed.
+            return await _messageReader!.ReadMessageAsync(cancellationToken).ConfigureAwait(false);
+        }
+        public async Task<MemoryOwner<byte>?> TryReadNextMessageAsync(CancellationToken cancellationToken = default) {
+            using var readToken = StartReading();
+            // we need to await here because otherwise the token would immediately be disposed.
+            return await _messageReader!.TryReadMessageAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private ThreadSafeGuardToken StartReading() {
             EnsureConnected();
             return _readGuard.UseOrThrow(() => new InvalidOperationException("A read operation already in progress."));
         }
-        private IDisposable StartWriting() {
+        private ThreadSafeGuardToken StartWriting() {
             EnsureConnected();
             return _writeGuard.UseOrThrow(() => new InvalidOperationException("A write operation already in progress."));
         }
@@ -65,17 +88,16 @@ namespace Flare.Tcp {
 
             _networkStream?.Close();
             _networkStream?.Dispose();
-            _messageReader?.Dispose();
             _networkStream = null;
             _messageReader = null;
             _messageWriter = null;
         }
 
-        public override void Dispose() {
-            base.Dispose();
-            _networkStream?.Dispose();
-            _messageReader?.Dispose();
+        protected override void Dispose(bool disposing) {
+            base.Dispose(disposing);
+            if (disposing) {
+                _networkStream?.Dispose();
+            }
         }
-
     }
 }

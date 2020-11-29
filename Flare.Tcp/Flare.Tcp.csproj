@@ -12,13 +12,13 @@
     <Authors>OpenByte</Authors>
     <Product>Flare.Tcp</Product>
     <PackageId>Flare.Tcp</PackageId>
-    <Description>A basic multi-client message-based event-driven tcp server (and client).</Description>
+    <Description>A basic multi-client message-based tcp server (and client).</Description>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/OpenByteDev/Flare.Tcp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/OpenByteDev/Flare.Tcp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>tcp,server,client,networking,simple,async,sync,event-based,message-driven</PackageTags>
-    <Version>2.0.0</Version>
+    <PackageTags>tcp,server,client,networking,simple,async,sync,message-based</PackageTags>
+    <Version>0.1.0</Version>
     <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -27,6 +27,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClrHeapAllocationAnalyzer" Version="3.0.0" />
     <PackageReference Include="ErrorProne.NET.CoreAnalyzers" Version="0.3.0-beta.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -35,8 +36,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.3.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Toolkit.HighPerformance" Version="6.1.1" />
     <PackageReference Include="ValueTaskSupplement" Version="1.1.0" />
   </ItemGroup>
-
 
 </Project>

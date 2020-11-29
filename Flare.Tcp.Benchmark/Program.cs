@@ -7,8 +7,7 @@ namespace Flare.Tcp.Benchmark {
     public static class Program {
         public static void Main() {
             var config = DefaultConfig.Instance
-                .AddDiagnoser(MemoryDiagnoser.Default)
-                .AddDiagnoser(ThreadingDiagnoser.Default);
+                .AddDiagnoser(MemoryDiagnoser.Default);
             BenchmarkRunner.Run<MessageRoundtripBenchmark>(config);
 
             Console.Read();
