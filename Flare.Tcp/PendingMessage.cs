@@ -20,6 +20,6 @@ namespace Flare.Tcp {
 
         public void SetSent() => _sendTask?.TrySetResult();
         public void WaitForSend() => WaitForSendAsync().WaitAndUnwrap();
-        public Task WaitForSendAsync() => _sendTask?.Task ?? throw new InvalidOperationException();
+        public Task WaitForSendAsync() => _sendTask?.Task ?? throw new InvalidOperationException("Message does not support awaiting.");
     }
 }

@@ -15,11 +15,10 @@ namespace Flare.Tcp {
         /// </summary>
         public Stream Stream { get; }
 
-        private readonly byte[] _headerBuffer;
+        private readonly byte[] _headerBuffer = new byte[HeaderLength];
 
         public MessageStreamReader(Stream stream) {
             Stream = stream!;
-            _headerBuffer = new byte[HeaderLength];
         }
 
         public MemoryOwner<byte> ReadMessage() => TryReadMessage() ?? throw new EndOfStreamException();
