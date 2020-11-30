@@ -24,8 +24,10 @@ namespace Flare.Tcp {
         public IPEndPoint? RemoteEndPoint => Client?.Client.RemoteEndPoint as IPEndPoint;
 
         protected FlareTcpClientBase() { }
-        internal FlareTcpClientBase(TcpClient client) : this() {
+
+        internal void DirectConnect(TcpClient client) {
             Client = client;
+            OnConnected();
         }
 
         public void Connect(IPEndPoint endPoint) {

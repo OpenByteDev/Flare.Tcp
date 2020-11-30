@@ -100,11 +100,14 @@ namespace Flare.Tcp {
 
         protected virtual void AcceptClient(TcpClient socket) {
             var clientId = GetAndIncrementNextClientId();
-            var client = new ClientToken(clientId, socket);
+            var client = new ClientToken(clientId);
             var added = _clients.TryAdd(clientId, client);
             Debug.Assert(added, "Client id already used when it should not.");
-            OnClientConnected(clientId);
+
             HandleClient(client);
+            client.Socket.DirectConnect(socket);
+
+            OnClientConnected(clientId);
         }
 
         private void HandleClient(ClientToken client) {
@@ -189,11 +192,10 @@ namespace Flare.Tcp {
         }
 
         private class ClientToken : IDisposable {
-            public readonly ConcurrentFlareTcpClient Socket;
+            public readonly ConcurrentFlareTcpClient Socket = new();
             public readonly long Id;
 
-            public ClientToken(long clientId, TcpClient socket) {
-                Socket = new ConcurrentFlareTcpClient(socket);
+            public ClientToken(long clientId) {
                 Id = clientId;
             }
 

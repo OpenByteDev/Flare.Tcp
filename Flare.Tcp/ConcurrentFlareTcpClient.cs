@@ -20,11 +20,6 @@ namespace Flare.Tcp {
             MessageReceived?.Invoke(message);
         }
 
-        public ConcurrentFlareTcpClient() { }
-        internal ConcurrentFlareTcpClient(TcpClient client) : base(client) {
-            OnConnected();
-        }
-
         protected override void OnConnected() {
             base.OnConnected();
 

@@ -14,11 +14,6 @@ namespace Flare.Tcp {
         private readonly ThreadSafeGuard _readGuard = new();
         private readonly ThreadSafeGuard _writeGuard = new();
 
-        public FlareTcpClient() { }
-        internal FlareTcpClient(TcpClient client) : base(client) {
-            OnConnected();
-        }
-
         protected override void OnConnected() {
             base.OnConnected();
 

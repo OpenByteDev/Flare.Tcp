@@ -1,4 +1,6 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace Flare.Tcp {
@@ -10,19 +12,23 @@ namespace Flare.Tcp {
         public FlareTcpClient AcceptClient() {
             EnsureRunning();
             var client = Server.AcceptTcpClient();
-            return new FlareTcpClient(client);
+            return WrapIntoClient(client);
         }
-        /*
-        public async Task<FlareTcpClient> AcceptClientAsync(CancellationToken cancellationToken = default) {
-            EnsureRunning();
-            var client = await Listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
-            return new FlareTcpClient(client);
-        }
-        */
+        /*public async Task<FlareTcpClient> AcceptClientAsync(CancellationToken cancellationToken = default) {
+           EnsureRunning();
+           var client = await Listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
+           return new FlareTcpClient(client);
+        }*/
         public async Task<FlareTcpClient> AcceptClientAsync() {
             EnsureRunning();
             var client = await Server.AcceptTcpClientAsync().ConfigureAwait(false);
-            return new FlareTcpClient(client);
+            return WrapIntoClient(client);
+        }
+
+        private static FlareTcpClient WrapIntoClient(TcpClient socket) {
+            var client = new FlareTcpClient();
+            client.DirectConnect(socket);
+            return client;
         }
 
         public void Stop() {
