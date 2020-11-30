@@ -1,10 +1,9 @@
-﻿using Microsoft.Toolkit.HighPerformance.Buffers;
-using System;
+﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using static Flare.Tcp.ThreadSafeGuard;
+using Microsoft.Toolkit.HighPerformance.Buffers;
 
 namespace Flare.Tcp {
     public class FlareTcpClient : FlareTcpClientBase {
@@ -68,11 +67,11 @@ namespace Flare.Tcp {
 
         private ThreadSafeGuardToken StartReading() {
             EnsureConnected();
-            return _readGuard.UseOrThrow(() => new InvalidOperationException("A read operation already in progress."));
+            return _readGuard.Use() ?? throw new InvalidOperationException("A read operation already in progress.");
         }
         private ThreadSafeGuardToken StartWriting() {
             EnsureConnected();
-            return _writeGuard.UseOrThrow(() => new InvalidOperationException("A write operation already in progress."));
+            return _writeGuard.Use() ?? throw new InvalidOperationException("A write operation already in progress.");
         }
 
         protected override void OnDisconnected() {

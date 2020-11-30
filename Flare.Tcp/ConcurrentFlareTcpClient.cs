@@ -1,12 +1,12 @@
-﻿using Flare.Tcp.Extensions;
-using Microsoft.Toolkit.HighPerformance.Buffers;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Flare.Tcp.Extensions;
+using Microsoft.Toolkit.HighPerformance.Buffers;
 using ValueTaskSupplement;
 
 namespace Flare.Tcp {
@@ -47,6 +47,24 @@ namespace Flare.Tcp {
                 stream.Dispose();
             }, TaskContinuationOptions.RunContinuationsAsynchronously);
 
+            void ReadLoop() {
+                var reader = new MessageStreamReader(stream!);
+                while (IsConnected && !cancellationToken.IsCancellationRequested) {
+                    var message = reader.ReadMessage();
+                    OnMessageReceived(message);
+                }
+            }
+            async Task WriteLoop() {
+                var writer = new MessageStreamWriter(stream!);
+                while (await _pendingMessages.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false)) {
+                    // Fast loop around available jobs
+                    while (_pendingMessages.Reader.TryRead(out var message)) {
+                        writer.WriteMessage(message.Content.Span);
+                        message.SetSent();
+                    }
+                }
+            }
+            /*
             async Task ReadLoop() {
                 var reader = new MessageStreamReader(stream!);
                 while (IsConnected && !cancellationToken.IsCancellationRequested) {
@@ -61,6 +79,7 @@ namespace Flare.Tcp {
                     message.SetSent();
                 }
             }
+            */
         }
 
         public void EnqueueMessage(ReadOnlyMemory<byte> message) =>

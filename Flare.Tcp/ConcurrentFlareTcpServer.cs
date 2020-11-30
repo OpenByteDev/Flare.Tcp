@@ -1,6 +1,4 @@
-﻿using Flare.Tcp.Extensions;
-using Microsoft.Toolkit.HighPerformance.Buffers;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,8 +7,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Flare.Tcp.Extensions;
+using Microsoft.Toolkit.HighPerformance.Buffers;
 using ValueTaskSupplement;
-using static Flare.Tcp.ThreadSafeGuard;
 
 namespace Flare.Tcp {
     public class ConcurrentFlareTcpServer : FlareTcpServerBase {
@@ -183,7 +182,7 @@ namespace Flare.Tcp {
 
         private ThreadSafeGuardToken StartListening() {
             EnsureStopped();
-            return _listenGuard.UseOrThrow(() => new InvalidOperationException("The server is already listening."));
+            return _listenGuard.Use() ?? throw new InvalidOperationException("The server is already listening.");
         }
         private ClientToken GetClientToken(long clientId) {
             if (!_clients.TryGetValue(clientId, out var client))

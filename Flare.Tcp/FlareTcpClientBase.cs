@@ -5,7 +5,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using static Flare.Tcp.ThreadSafeGuard;
 
 namespace Flare.Tcp {
     public abstract class FlareTcpClientBase : IDisposable {
@@ -90,7 +89,7 @@ namespace Flare.Tcp {
 
         private ThreadSafeGuardToken StartConnecting() {
             EnsureDisonnected();
-            return _connectGuard.UseOrThrow(() => new InvalidOperationException("The client is already connecting."));
+            return _connectGuard.Use() ?? throw new InvalidOperationException("The client is already connecting.");
         }
 
         #region IDisposable
