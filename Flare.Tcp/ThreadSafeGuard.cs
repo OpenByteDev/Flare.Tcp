@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Flare.Tcp {
@@ -11,41 +12,46 @@ namespace Flare.Tcp {
             _state = active ? Active : Inactive;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetAndSet() => Interlocked.Exchange(ref _state, Active) == Inactive;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Get() => _state == Active;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Unset() => _state = Inactive;
 
         public void SetOrThrow() {
             if (!GetAndSet())
                 throw new InvalidOperationException("The guard is already in use.");
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ThreadSafeGuardToken? Use() {
             if (GetAndSet())
                 return new ThreadSafeGuardToken(this);
             else
                 return null;
         }
-        public ThreadSafeGuardToken UseOrThrow(Func<Exception> exceptionSupplier) {
-            if (GetAndSet())
-                return new ThreadSafeGuardToken(this);
-            else
-                throw exceptionSupplier();
-        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ThreadSafeGuardToken UseOrThrow() {
             SetOrThrow();
             return new ThreadSafeGuardToken(this);
         }
+    }
 
-        internal readonly struct ThreadSafeGuardToken : IDisposable {
-            private readonly ThreadSafeGuard _guard;
+    internal readonly struct ThreadSafeGuardToken : IDisposable {
+        private readonly ThreadSafeGuard _guard;
 
-            public ThreadSafeGuardToken(ThreadSafeGuard threadSafeGuard) {
-                _guard = threadSafeGuard;
-            }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ThreadSafeGuardToken(ThreadSafeGuard threadSafeGuard) {
+            _guard = threadSafeGuard;
+        }
 
-            public void Dispose() {
-                _guard.Unset();
-            }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Dispose() {
+            _guard.Unset();
         }
     }
 }
