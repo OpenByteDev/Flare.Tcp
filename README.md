@@ -74,12 +74,12 @@ using var client = new ConcurrentFlareTcpClient();
 
 // attach message callback
 client.MessageReceived += message => {
-    // print message to console
-    Console.WriteLine(Encoding.UTF8.GetString(message.Span));
+	// print message to console
+	Console.WriteLine(Encoding.UTF8.GetString(message.Span));
 	// free the message buffer
-    message.Dispose();
-    // disconnect from server
-    client.Disconnect();
+	message.Dispose();
+	// disconnect from server
+	client.Disconnect();
 };
 
 // connect to localhost on port 4242
