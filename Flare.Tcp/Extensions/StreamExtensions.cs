@@ -13,6 +13,7 @@ namespace Flare.Tcp.Extensions {
             if (!await stream.TryReadExactAsync(buffer, cancellationToken).ConfigureAwait(false))
                 throw new EndOfStreamException();
         }
+
         public static bool TryReadExact(this Stream stream, Span<byte> buffer) {
             if (buffer.IsEmpty)
                 return true;

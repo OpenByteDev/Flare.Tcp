@@ -1,10 +1,10 @@
-﻿using Flare.Tcp.Extensions;
-using Microsoft.Toolkit.HighPerformance.Buffers;
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Flare.Tcp.Extensions;
+using Microsoft.Toolkit.HighPerformance.Buffers;
 
 namespace Flare.Tcp {
     public class MessageStreamReader {

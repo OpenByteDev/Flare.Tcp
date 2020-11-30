@@ -27,7 +27,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ClrHeapAllocationAnalyzer" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Toolkit.HighPerformance" Version="6.1.1" />
+    <PackageReference Include="ValueTaskSupplement" Version="1.1.0" />
     <PackageReference Include="ClrHeapAllocationAnalyzer" Version="3.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -44,8 +45,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Toolkit.HighPerformance" Version="6.1.1" />
-    <PackageReference Include="ValueTaskSupplement" Version="1.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>$(AssemblyName).Benchmark</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

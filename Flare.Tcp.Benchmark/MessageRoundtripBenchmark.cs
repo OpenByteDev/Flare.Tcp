@@ -1,8 +1,7 @@
-﻿using BenchmarkDotNet.Attributes;
-using System;
-using System.Buffers;
+﻿using System;
 using System.Net;
 using System.Threading.Tasks;
+using BenchmarkDotNet.Attributes;
 
 namespace Flare.Tcp.Benchmark {
     public class MessageRoundtripBenchmark {
@@ -25,10 +24,8 @@ namespace Flare.Tcp.Benchmark {
             server = new ConcurrentFlareTcpServer();
             client = new FlareTcpClient();
             server.MessageReceived += (clientId, message) => {
-                Task.Run(async () => {
-                    using (message)
-                        await server.EnqueueMessageAndWaitAsync(clientId, message.Memory).ConfigureAwait(false);
-                });
+                server.EnqueueMessageAndWait(clientId, message.Memory);
+                message.Dispose();
             };
             _ = Task.Run(() => server.ListenAsync(8888));
             client.Connect(IPAddress.Loopback, 8888);

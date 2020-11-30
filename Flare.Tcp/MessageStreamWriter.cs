@@ -13,11 +13,10 @@ namespace Flare.Tcp {
         /// </summary>
         public Stream Stream { get; }
 
-        private readonly byte[] _headerBuffer;
+        private readonly byte[] _headerBuffer = new byte[HeaderLength];
 
         public MessageStreamWriter(Stream stream) {
             Stream = stream!;
-            _headerBuffer = new byte[HeaderLength];
         }
 
         public async ValueTask WriteMessageAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken = default) {

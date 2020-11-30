@@ -3,7 +3,6 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestPlatform.Utilities;
 using NUnit.Framework;
 
 namespace Flare.Tcp.Test {
@@ -57,6 +56,7 @@ namespace Flare.Tcp.Test {
             server.MessageReceived += (_, message) => {
                 Assert.AreEqual(message.Span.ToArray(), testMessage);
                 messageReceivedEvent.Set();
+                message.Dispose();
             };
             var listenTask = Task.Run(() => server.ListenAsync(8888));
 

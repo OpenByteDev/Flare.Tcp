@@ -1,7 +1,7 @@
-﻿using BenchmarkDotNet.Configs;
+﻿using System;
+using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Running;
-using System;
 
 namespace Flare.Tcp.Benchmark {
     public static class Program {
