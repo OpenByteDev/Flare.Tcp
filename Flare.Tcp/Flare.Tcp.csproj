@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <Nullable>Enable</Nullable>
+    <LangVersion>9</LangVersion>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <AnalysisLevel>Preview</AnalysisLevel>
   </PropertyGroup>
@@ -29,22 +30,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Toolkit.HighPerformance" Version="6.1.1" />
     <PackageReference Include="ValueTaskSupplement" Version="1.1.0" />
-    <PackageReference Include="ClrHeapAllocationAnalyzer" Version="3.0.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="ErrorProne.NET.CoreAnalyzers" Version="0.3.0-beta.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="ErrorProne.NET.Structs" Version="0.3.0-beta.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.3.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="ClrHeapAllocationAnalyzer" Version="3.0.0" PrivateAssets="all" />
+    <PackageReference Include="ErrorProne.NET.CoreAnalyzers" Version="0.3.0-beta.0" PrivateAssets="all" />
+    <PackageReference Include="ErrorProne.NET.Structs" Version="0.3.0-beta.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="3.3.1" PrivateAssets="all" />
+  
   </ItemGroup>
 
   <ItemGroup>
