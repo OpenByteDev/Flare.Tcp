@@ -47,7 +47,7 @@ namespace Flare.Tcp.Benchmark {
             }
         }
 
-        // [Benchmark]
+        [Benchmark]
         public void MessageRoundtripSyncSpanOwner() {
             for (var i = 0; i < MessageCount; i++) {
                 client.WriteMessage(data);
