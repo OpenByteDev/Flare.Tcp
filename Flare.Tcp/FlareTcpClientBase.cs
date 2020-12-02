@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Flare.Tcp {
     public abstract class FlareTcpClientBase : IDisposable {
-        public TcpClient? Client { get; set; }
+        public TcpClient? Client { get; private set; }
         protected NetworkStream? NetworkStream { get; private set; }
 
         public event ConnectedEventHandler? Connected;
@@ -35,11 +35,14 @@ namespace Flare.Tcp {
         protected FlareTcpClientBase() { }
 
         [MemberNotNull(nameof(Client))]
+        [MemberNotNull(nameof(NetworkStream))]
         internal void DirectConnect(TcpClient client) {
             Client = client;
             OnConnected();
         }
 
+        [MemberNotNull(nameof(Client))]
+        [MemberNotNull(nameof(NetworkStream))]
         public void Connect(IPEndPoint endPoint) {
             if (endPoint is null)
                 throw new ArgumentNullException(nameof(endPoint));
@@ -47,6 +50,7 @@ namespace Flare.Tcp {
             Connect(endPoint.Address, endPoint.Port);
         }
         [MemberNotNull(nameof(Client))]
+        [MemberNotNull(nameof(NetworkStream))]
         public virtual void Connect(IPAddress address, int port) {
             using var token = StartConnecting();
 
@@ -55,6 +59,7 @@ namespace Flare.Tcp {
             OnConnected();
         }
 
+        [MemberNotNull(nameof(Client))]
         public ValueTask ConnectAsync(IPEndPoint endPoint, CancellationToken cancellationToken = default) {
             if (endPoint is null)
                 throw new ArgumentNullException(nameof(endPoint));
@@ -70,13 +75,7 @@ namespace Flare.Tcp {
             OnConnected();
         }
 
-        private TcpClient CreateClient() {
-            var client = LocalEndPoint is null ? new TcpClient() : new TcpClient(LocalEndPoint);
-            // client.Client.LingerState = new LingerOption(true, 0);
-            // client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Linger, 1);
-            // client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            return client;
-        }
+        private TcpClient CreateClient() => LocalEndPoint is null ? new TcpClient() : new TcpClient(LocalEndPoint);
 
         public virtual void Disconnect() {
             EnsureConnected();
@@ -86,6 +85,7 @@ namespace Flare.Tcp {
             OnDisconnected();
         }
 
+        [MemberNotNull(nameof(Client))]
         [MemberNotNull(nameof(NetworkStream))]
         protected virtual void OnConnected() {
             NetworkStream = Client!.GetStream();

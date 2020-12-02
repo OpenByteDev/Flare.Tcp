@@ -14,7 +14,6 @@ namespace Flare.Tcp {
         protected internal void StartListener(int port) {
             EnsureStopped();
             Server = TcpListener.Create(port);
-            Server.Server.LingerState = new LingerOption(true, 0);
             Server.Start();
             IsRunning = true;
         }
@@ -24,7 +23,6 @@ namespace Flare.Tcp {
         protected internal void StartListener(IPEndPoint endPoint) {
             EnsureStopped();
             Server = new TcpListener(endPoint);
-            Server.Server.LingerState = new LingerOption(true, 0);
             Server.Start();
             IsRunning = true;
         }

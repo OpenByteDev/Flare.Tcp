@@ -2,8 +2,7 @@
 
 namespace Flare.Tcp.Benchmark {
     public class GuardBenchmark {
-
-        private readonly ThreadSafeGuard _guard = new ThreadSafeGuard();
+        private readonly ThreadSafeGuard _guard = new();
 
         [Benchmark]
         public void GetAndSetThenUnset() {

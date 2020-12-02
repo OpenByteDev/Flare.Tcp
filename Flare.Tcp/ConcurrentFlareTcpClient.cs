@@ -42,7 +42,6 @@ namespace Flare.Tcp {
                 Disconnect();
             }, TaskContinuationOptions.RunContinuationsAsynchronously);
 
-
             void ReadLoop() {
                 var reader = new MessageStreamReader(NetworkStream);
                 while (IsConnected && !cancellationToken.IsCancellationRequested) {

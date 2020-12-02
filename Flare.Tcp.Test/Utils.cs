@@ -15,7 +15,7 @@ namespace Flare.Tcp.Test {
                 .Any(e => e.LocalEndPoint.Port == port);
 
         public static async Task WithTimeout(Task task, TimeSpan timeout) {
-            var first = await Task.WhenAny(task, Task.Delay(timeout));
+            var first = await Task.WhenAny(task, Task.Delay(timeout)).ConfigureAwait(false);
             if (first != task)
                 throw new TimeoutException("The task timed out.");
         }

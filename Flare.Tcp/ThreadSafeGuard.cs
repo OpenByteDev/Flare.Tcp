@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Flare.Tcp {
-    internal class ThreadSafeGuard {
+    internal sealed class ThreadSafeGuard {
         private const int Inactive = default;
         private const int Active = 1;
         private int _state;
