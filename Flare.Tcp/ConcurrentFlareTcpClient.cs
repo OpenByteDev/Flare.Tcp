@@ -92,10 +92,14 @@ namespace Flare.Tcp {
         public Task EnqueueMessagesAndWaitAsync(IEnumerable<ReadOnlyMemory<byte>> messages) =>
             Task.WhenAll(messages.Select(message => EnqueueMessageAndWaitAsync(message)));
 
-        private void EnqueueMessage(in PendingMessage message) =>
+        private void EnqueueMessage(in PendingMessage message) {
+            EnsureConnected();
             _pendingMessages.Writer.TryWrite(message);
-        private ValueTask EnqueueMessageAsync(in PendingMessage message, CancellationToken cancellationToken = default) =>
-            _pendingMessages.Writer.WriteAsync(message, cancellationToken);
+        }
+        private ValueTask EnqueueMessageAsync(in PendingMessage message, CancellationToken cancellationToken = default) {
+            EnsureConnected();
+            return _pendingMessages.Writer.WriteAsync(message, cancellationToken);
+        }
 
         protected override void Cleanup() {
             base.Cleanup();

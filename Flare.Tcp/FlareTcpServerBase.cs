@@ -36,13 +36,32 @@ namespace Flare.Tcp {
 
         [MemberNotNull(nameof(Server))]
         protected void EnsureRunning() {
+            ThrowIfDiposed();
+
             if (IsStopped)
-                throw new InvalidOperationException("Server is not currently running.");
+                ThrowNotRunning();
+
             Debug.Assert(Server != null);
+
+            [DoesNotReturn]
+            static void ThrowNotRunning() => throw new InvalidOperationException("Server is not currently running.");
         }
         protected void EnsureStopped() {
+            ThrowIfDiposed();
+
             if (IsRunning)
-                throw new InvalidOperationException("Server is already running.");
+                ThrowAlreadyRunning();
+
+            [DoesNotReturn]
+            static void ThrowAlreadyRunning() => throw new InvalidOperationException("Server is already running.");
+        }
+
+        protected void ThrowIfDiposed() {
+            if (_disposed)
+                ThrowObjectDisposedException();
+
+            [DoesNotReturn]
+            void ThrowObjectDisposedException() => throw new ObjectDisposedException(GetType().FullName);
         }
 
         protected virtual void Cleanup() {

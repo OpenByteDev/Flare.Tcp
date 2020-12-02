@@ -21,7 +21,14 @@ namespace Flare.Tcp {
         public bool IsConnecting => _connectGuard.Get() && !IsConnected; // Ensure that IsConnected and IsConnecting are never both true at the same time.
         public bool IsDisconnected => !IsConnected;
         public IPEndPoint? RemoteEndPoint => Client?.Client.RemoteEndPoint as IPEndPoint;
-        public IPEndPoint? LocalEndPoint { get; set; }
+        private IPEndPoint? _localEndPoint;
+        public IPEndPoint? LocalEndPoint {
+            get => _localEndPoint;
+            set {
+                EnsureDisconnected();
+                _localEndPoint = value;
+            }
+        }
 
         private readonly ThreadSafeGuard _connectGuard = new();
 
@@ -92,19 +99,41 @@ namespace Flare.Tcp {
         [MemberNotNull(nameof(Client))]
         [MemberNotNull(nameof(NetworkStream))]
         protected void EnsureConnected() {
+            ThrowIfDiposed();
+
             if (IsDisconnected)
-                throw new InvalidOperationException("The client is disconnected.");
+                ThrowNotConnected();
+
             Debug.Assert(Client != null);
             Debug.Assert(NetworkStream != null);
+
+            [DoesNotReturn]
+            static void ThrowNotConnected() => throw new InvalidOperationException("The client is disconnected.");
         }
-        protected void EnsureDisonnected() {
+        protected void EnsureDisconnected() {
+            ThrowIfDiposed();
+
             if (IsConnected)
-                throw new InvalidOperationException("The client is already connected.");
+                ThrowAlreadyConnected();
+
+            [DoesNotReturn]
+            static void ThrowAlreadyConnected() => throw new InvalidOperationException("The client is already connected.");
         }
 
         private ThreadSafeGuardToken StartConnecting() {
-            EnsureDisonnected();
-            return _connectGuard.Use() ?? throw new InvalidOperationException("The client is already connecting.");
+            EnsureDisconnected();
+            return _connectGuard.Use() ?? ThrowAlreadyConnecting();
+
+            [DoesNotReturn]
+            static ThreadSafeGuardToken ThrowAlreadyConnecting() => throw new InvalidOperationException("The client is already connecting.");
+        }
+
+        protected void ThrowIfDiposed() {
+            if (_disposed)
+                ThrowObjectDisposedException();
+
+            [DoesNotReturn]
+            void ThrowObjectDisposedException() => throw new ObjectDisposedException(GetType().FullName);
         }
 
         protected virtual void Cleanup() {

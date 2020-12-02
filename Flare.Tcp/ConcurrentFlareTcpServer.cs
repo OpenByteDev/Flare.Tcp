@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -111,6 +112,7 @@ namespace Flare.Tcp {
         }
 
         public bool DisconnectClient(long clientId) {
+            EnsureRunning();
             var client = GetClientToken(clientId);
             return DisconnectClient(client);
         }
@@ -189,12 +191,18 @@ namespace Flare.Tcp {
 
         private ThreadSafeGuardToken StartListening() {
             EnsureStopped();
-            return _listenGuard.Use() ?? throw new InvalidOperationException("The server is already listening.");
+            return _listenGuard.Use() ?? ThrowAlreadyListening();
+
+            [DoesNotReturn]
+            static ThreadSafeGuardToken ThrowAlreadyListening() => throw new InvalidOperationException("The server is already listening.");
         }
         private ClientToken GetClientToken(long clientId) {
             if (!_clients.TryGetValue(clientId, out var client))
-                throw new InvalidOperationException("Target client id is not valid.");
+                ThrowInvalidClientId();
             return client;
+
+            [DoesNotReturn]
+            static void ThrowInvalidClientId() => throw new InvalidOperationException("Target client id is not valid.");
         }
 
         private sealed class ClientToken : IDisposable {

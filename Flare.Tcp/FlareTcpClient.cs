@@ -59,11 +59,18 @@ namespace Flare.Tcp {
 
         private ThreadSafeGuardToken StartReading() {
             EnsureConnected();
-            return _readGuard.Use() ?? throw new InvalidOperationException("A read operation already in progress.");
+            return _readGuard.Use() ?? ThrowAlreadyReading();
+
+            [DoesNotReturn]
+            static ThreadSafeGuardToken ThrowAlreadyReading() => throw new InvalidOperationException("A read operation already in progress.");
+
         }
         private ThreadSafeGuardToken StartWriting() {
             EnsureConnected();
-            return _writeGuard.Use() ?? throw new InvalidOperationException("A write operation already in progress.");
+            return _writeGuard.Use() ?? ThrowAlreadyWriting();
+
+            [DoesNotReturn]
+            static ThreadSafeGuardToken ThrowAlreadyWriting() => throw new InvalidOperationException("A write operation already in progress.");
         }
 
         protected override void Cleanup() {
