@@ -1,5 +1,4 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
@@ -29,10 +28,6 @@ namespace Flare.Tcp {
             var client = new FlareTcpClient();
             client.DirectConnect(socket);
             return client;
-        }
-
-        public void Stop() {
-            StopListener();
         }
     }
 }

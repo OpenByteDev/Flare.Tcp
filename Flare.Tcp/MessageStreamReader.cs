@@ -36,7 +36,7 @@ namespace Flare.Tcp {
 
             return messageBuffer;
         }
-        public SpanOwner<byte> ReadMessageIntoSpan() {
+        public SpanOwner<byte> ReadMessageSpanOwner() {
             // read and parse header
             if (!Stream.TryReadExact(_headerBuffer))
                 throw new EndOfStreamException();

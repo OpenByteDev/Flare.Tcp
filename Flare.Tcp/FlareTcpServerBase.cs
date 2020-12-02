@@ -14,6 +14,7 @@ namespace Flare.Tcp {
         protected internal void StartListener(int port) {
             EnsureStopped();
             Server = TcpListener.Create(port);
+            Server.Server.LingerState = new LingerOption(true, 0);
             Server.Start();
             IsRunning = true;
         }
@@ -23,15 +24,14 @@ namespace Flare.Tcp {
         protected internal void StartListener(IPEndPoint endPoint) {
             EnsureStopped();
             Server = new TcpListener(endPoint);
+            Server.Server.LingerState = new LingerOption(true, 0);
             Server.Start();
             IsRunning = true;
         }
 
-        protected internal void StopListener() {
+        public virtual void Shutdown() {
             EnsureRunning();
-            Server.Stop();
-            Server = null;
-            IsRunning = false;
+            Cleanup();
         }
 
         [MemberNotNull(nameof(Server))]
@@ -45,13 +45,19 @@ namespace Flare.Tcp {
                 throw new InvalidOperationException("Server is already running.");
         }
 
+        protected virtual void Cleanup() {
+            Server?.Stop();
+            Server = null;
+            IsRunning = false;
+        }
+
         #region IDisposable
         private bool _disposed;
 
         protected virtual void Dispose(bool disposing) {
             if (!_disposed) {
                 if (disposing) {
-                    Server?.Stop();
+                    Cleanup();
                 }
                 _disposed = true;
             }

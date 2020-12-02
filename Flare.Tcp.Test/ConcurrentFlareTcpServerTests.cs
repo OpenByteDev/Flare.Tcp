@@ -9,6 +9,23 @@ namespace Flare.Tcp.Test {
     [TestFixture]
     public static class ConcurrentFlareTcpServerTests {
         [Test]
+        public static void FreesSocket() {
+            var port = Utils.GetRandomClientPort();
+            using var server = new ConcurrentFlareTcpServer();
+            var clientTask = Task.Run(() => {
+                using var client = new FlareTcpClient();
+                client.Connect(IPAddress.Loopback, port);
+                client.Disconnect();
+            });
+            server.ClientDisconnected += _ => {
+                server.Shutdown();
+            };
+            server.Listen(port);
+            Assert.IsTrue(clientTask.Wait(TimeSpan.FromSeconds(5)), "Client Task did not complete successfully.");
+            Assert.IsFalse(Utils.IsPortInUse(port), "Port is still in use after server shutdown.");
+        }
+
+        [Test]
         public static void ConnectedEventRaised() {
             using var clientConnectedEvent = new ManualResetEventSlim();
 
@@ -23,7 +40,7 @@ namespace Flare.Tcp.Test {
             Assert.IsTrue(clientConnectedEvent.Wait(TimeSpan.FromSeconds(5)));
 
             client.Disconnect();
-            server.Stop();
+            server.Shutdown();
             Assert.IsTrue(listenTask.Wait(TimeSpan.FromSeconds(5)));
         }
 
@@ -43,7 +60,7 @@ namespace Flare.Tcp.Test {
 
             client.Disconnect();
             Assert.IsTrue(clientDisconnectedEvent.Wait(TimeSpan.FromSeconds(5)));
-            server.Stop();
+            server.Shutdown();
             Assert.IsTrue(listenTask.Wait(TimeSpan.FromSeconds(5)));
         }
 
@@ -66,7 +83,7 @@ namespace Flare.Tcp.Test {
             client.WriteMessage(testMessage);
             client.Disconnect();
             Assert.IsTrue(messageReceivedEvent.Wait(TimeSpan.FromSeconds(5)));
-            server.Stop();
+            server.Shutdown();
             Assert.IsTrue(listenTask.Wait(TimeSpan.FromSeconds(5)));
         }
 
@@ -85,7 +102,7 @@ namespace Flare.Tcp.Test {
             using var message = client.ReadNextMessage();
             Assert.AreEqual(message.Span.ToArray(), testMessage);
             client.Disconnect();
-            server.Stop();
+            server.Shutdown();
             Assert.IsTrue(listenTask.Wait(TimeSpan.FromSeconds(5)));
         }
 
@@ -102,12 +119,12 @@ namespace Flare.Tcp.Test {
 
             using var client = new FlareTcpClient();
             client.Connect(IPAddress.Loopback, 8888);
-            await Task.WhenAny(messageWriteTask.AsTask(), Task.Delay(TimeSpan.FromSeconds(5)));
+            await Utils.WithTimeout(messageWriteTask, TimeSpan.FromSeconds(5));
             using var message = client.ReadNextMessage();
             Assert.AreEqual(message.Span.ToArray(), testMessage);
             client.Disconnect();
-            server.Stop();
-            await listenTask.ConfigureAwait(false);
+            server.Shutdown();
+            await Utils.WithTimeout(listenTask, TimeSpan.FromSeconds(5));
         }
 
         [Test]
@@ -125,8 +142,8 @@ namespace Flare.Tcp.Test {
             using var message = client.ReadNextMessage();
             Assert.AreEqual(message.Span.ToArray(), testMessage);
             client.Disconnect();
-            server.Stop();
-            await listenTask.ConfigureAwait(false);
+            server.Shutdown();
+            await Utils.WithTimeout(listenTask, TimeSpan.FromSeconds(5));
         }
 
         [Test]
@@ -145,12 +162,12 @@ namespace Flare.Tcp.Test {
             client.Connect(IPAddress.Loopback, 8888);
             Assert.IsTrue(messageReceivedEvent.Wait(TimeSpan.FromSeconds(5)));
             Assert.IsNotNull(messageWriteTask);
-            await Task.WhenAny(messageWriteTask, Task.Delay(TimeSpan.FromSeconds(5)));
+            await Utils.WithTimeout(messageWriteTask, TimeSpan.FromSeconds(5));
             using var message = client.ReadNextMessage();
             Assert.AreEqual(message.Span.ToArray(), testMessage);
             client.Disconnect();
-            server.Stop();
-            await listenTask.ConfigureAwait(false);
+            server.Shutdown();
+            await Utils.WithTimeout(listenTask, TimeSpan.FromSeconds(5));
         }
     }
 }

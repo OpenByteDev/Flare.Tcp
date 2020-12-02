@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Flare.Tcp {
     public abstract class FlareTcpClientBase : IDisposable {
         public TcpClient? Client { get; set; }
-        private readonly ThreadSafeGuard _connectGuard = new();
+        protected NetworkStream? NetworkStream { get; private set; }
 
         public event ConnectedEventHandler? Connected;
         public delegate void ConnectedEventHandler();
@@ -21,9 +21,13 @@ namespace Flare.Tcp {
         public bool IsConnecting => _connectGuard.Get() && !IsConnected; // Ensure that IsConnected and IsConnecting are never both true at the same time.
         public bool IsDisconnected => !IsConnected;
         public IPEndPoint? RemoteEndPoint => Client?.Client.RemoteEndPoint as IPEndPoint;
+        public IPEndPoint? LocalEndPoint { get; set; }
+
+        private readonly ThreadSafeGuard _connectGuard = new();
 
         protected FlareTcpClientBase() { }
 
+        [MemberNotNull(nameof(Client))]
         internal void DirectConnect(TcpClient client) {
             Client = client;
             OnConnected();
@@ -35,40 +39,49 @@ namespace Flare.Tcp {
 
             Connect(endPoint.Address, endPoint.Port);
         }
-        public void Connect(IPAddress address, int port) {
+        [MemberNotNull(nameof(Client))]
+        public virtual void Connect(IPAddress address, int port) {
             using var token = StartConnecting();
 
-            Client = new TcpClient();
+            Client = CreateClient();
             Client.Connect(address, port);
             OnConnected();
         }
+
         public ValueTask ConnectAsync(IPEndPoint endPoint, CancellationToken cancellationToken = default) {
             if (endPoint is null)
                 throw new ArgumentNullException(nameof(endPoint));
 
             return ConnectAsync(endPoint.Address, endPoint.Port, cancellationToken);
         }
-        public async ValueTask ConnectAsync(IPAddress address, int port, CancellationToken cancellationToken = default) {
+        [MemberNotNull(nameof(Client))]
+        public virtual async ValueTask ConnectAsync(IPAddress address, int port, CancellationToken cancellationToken = default) {
             using var token = StartConnecting();
 
-            Client = new TcpClient();
+            Client = CreateClient();
             await Client.ConnectAsync(address, port, cancellationToken).ConfigureAwait(false);
             OnConnected();
         }
 
-        public void Disconnect() {
+        private TcpClient CreateClient() {
+            var client = LocalEndPoint is null ? new TcpClient() : new TcpClient(LocalEndPoint);
+            // client.Client.LingerState = new LingerOption(true, 0);
+            // client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Linger, 1);
+            // client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            return client;
+        }
+
+        public virtual void Disconnect() {
             EnsureConnected();
 
-            Client!.Close();
-            Client!.Dispose();
-            Client = null;
-
-            _connectGuard.Unset();
+            Cleanup();
 
             OnDisconnected();
         }
 
+        [MemberNotNull(nameof(NetworkStream))]
         protected virtual void OnConnected() {
+            NetworkStream = Client!.GetStream();
             Connected?.Invoke();
         }
 
@@ -77,10 +90,12 @@ namespace Flare.Tcp {
         }
 
         [MemberNotNull(nameof(Client))]
+        [MemberNotNull(nameof(NetworkStream))]
         protected void EnsureConnected() {
             if (IsDisconnected)
                 throw new InvalidOperationException("The client is disconnected.");
             Debug.Assert(Client != null);
+            Debug.Assert(NetworkStream != null);
         }
         protected void EnsureDisonnected() {
             if (IsConnected)
@@ -92,13 +107,31 @@ namespace Flare.Tcp {
             return _connectGuard.Use() ?? throw new InvalidOperationException("The client is already connecting.");
         }
 
+        protected virtual void Cleanup() {
+            if (Client?.Connected == true)
+                Client?.Client.Shutdown(SocketShutdown.Both);
+
+            // cleanup the underlying stream
+            NetworkStream?.Close();
+            NetworkStream?.Dispose();
+            NetworkStream = null;
+
+            // cleanup the client itself
+            Client?.Close();
+            Client?.Dispose();
+            Client = null;
+
+            // mark the client as not connecting.
+            _connectGuard.Unset();
+        }
+
         #region IDisposable
         private bool _disposed;
 
         protected virtual void Dispose(bool disposing) {
             if (!_disposed) {
                 if (disposing) {
-                    Client?.Dispose();
+                    Cleanup();
                 }
                 _disposed = true;
             }

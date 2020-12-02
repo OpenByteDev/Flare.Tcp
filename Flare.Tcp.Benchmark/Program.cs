@@ -5,11 +5,12 @@ using BenchmarkDotNet.Running;
 
 namespace Flare.Tcp.Benchmark {
     public static class Program {
-        public static void Main() {
+        public static void Main(string[] args) {
             var config = DefaultConfig.Instance
                 .AddDiagnoser(MemoryDiagnoser.Default);
-            BenchmarkRunner.Run<MessageRoundtripBenchmark>(config);
+            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, config);
 
+            // BenchmarkRunner.Run<MessageRoundtripBenchmark>(config);
             Console.Read();
         }
     }

@@ -47,11 +47,11 @@ namespace Flare.Tcp.Benchmark {
             }
         }
 
-        [Benchmark]
-        public void MessageRoundtripSyncIntoSpan() {
+        // [Benchmark]
+        public void MessageRoundtripSyncSpanOwner() {
             for (var i = 0; i < MessageCount; i++) {
                 client.WriteMessage(data);
-                using var message = client.ReadNextMessageIntoSpan();
+                using var message = client.ReadNextMessageSpanOwner();
             }
         }
 
@@ -59,7 +59,7 @@ namespace Flare.Tcp.Benchmark {
         public void Cleanup() {
             client.Disconnect();
             client.Dispose();
-            server.Stop();
+            server.Shutdown();
             server.Dispose();
         }
     }

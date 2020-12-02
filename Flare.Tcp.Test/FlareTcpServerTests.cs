@@ -8,6 +8,23 @@ namespace Flare.Tcp.Test {
     [TestFixture]
     public static class FlareTcpServerTests {
         [Test]
+        public static void FreesSocket() {
+            var port = Utils.GetRandomClientPort();
+            using var server = new FlareTcpServer();
+            var clientTask = Task.Run(() => {
+                using var client = new FlareTcpClient();
+                client.Connect(IPAddress.Loopback, port);
+                client.Disconnect();
+            });
+            server.Start(port);
+            using var serverClient = server.AcceptClient();
+            serverClient.Disconnect();
+            server.Shutdown();
+            Assert.IsTrue(clientTask.Wait(TimeSpan.FromSeconds(5)), "Client Task did not complete successfully.");
+            Assert.IsFalse(Utils.IsPortInUse(port), "Port is still in use after server shutdown.");
+        }
+
+        [Test]
         public static void CanAcceptClient() {
             using var server = new FlareTcpServer();
             server.Start(8888);
@@ -16,10 +33,11 @@ namespace Flare.Tcp.Test {
                 client.Connect(IPAddress.Loopback, 8888);
                 client.Disconnect();
             });
-            var client = server.AcceptClient();
+            using var client = server.AcceptClient();
+            client.Disconnect();
             Assert.IsNotNull(client);
-            server.Stop();
-            clientTask.Wait(TimeSpan.FromSeconds(5));
+            server.Shutdown();
+            Assert.IsTrue(clientTask.Wait(TimeSpan.FromSeconds(5)), "Client Task did not complete successfully.");
         }
 
         [Test]
@@ -31,9 +49,9 @@ namespace Flare.Tcp.Test {
                 client.Connect(IPAddress.Loopback, 8888);
                 client.Disconnect();
             });
-            var client = await server.AcceptClientAsync().ConfigureAwait(false);
+            using var client = await server.AcceptClientAsync().ConfigureAwait(false);
             Assert.IsNotNull(client);
-            server.Stop();
+            server.Shutdown();
             await clientTask.ConfigureAwait(false);
         }
 
@@ -49,16 +67,16 @@ namespace Flare.Tcp.Test {
                 client.WriteMessage(testMessage);
                 client.Disconnect();
             });
-            var client = server.AcceptClient();
+            using var client = server.AcceptClient();
             using var message = client.ReadNextMessage();
             Assert.IsNotNull(message);
             Assert.AreEqual(message.Span.ToArray(), testMessage);
-            server.Stop();
+            server.Shutdown();
             clientTask.Wait(TimeSpan.FromSeconds(5));
         }
 
         [Test]
-        public static void CanReceiveMessageIntoSpan() {
+        public static void CanReceiveMessageSpanOwner() {
             byte[] testMessage = Encoding.UTF8.GetBytes("Test");
 
             using var server = new FlareTcpServer();
@@ -69,10 +87,10 @@ namespace Flare.Tcp.Test {
                 client.WriteMessage(testMessage);
                 client.Disconnect();
             });
-            var client = server.AcceptClient();
-            using var message = client.ReadNextMessageIntoSpan();
+            using var client = server.AcceptClient();
+            using var message = client.ReadNextMessageSpanOwner();
             Assert.AreEqual(message.Span.ToArray(), testMessage);
-            server.Stop();
+            server.Shutdown();
             clientTask.Wait(TimeSpan.FromSeconds(5));
         }
 
@@ -88,11 +106,11 @@ namespace Flare.Tcp.Test {
                 client.WriteMessage(testMessage);
                 client.Disconnect();
             });
-            var client = await server.AcceptClientAsync().ConfigureAwait(false);
+            using var client = await server.AcceptClientAsync().ConfigureAwait(false);
             using var message = await client.ReadNextMessageAsync().ConfigureAwait(false);
             Assert.IsNotNull(message);
             Assert.AreEqual(message.Span.ToArray(), testMessage);
-            server.Stop();
+            server.Shutdown();
             clientTask.Wait(TimeSpan.FromSeconds(5));
         }
 
@@ -109,9 +127,9 @@ namespace Flare.Tcp.Test {
                 Assert.AreEqual(message.Span.ToArray(), testMessage);
                 client.Disconnect();
             });
-            var client = server.AcceptClient();
+            using var client = server.AcceptClient();
             client.WriteMessage(testMessage);
-            server.Stop();
+            server.Shutdown();
             clientTask.Wait(TimeSpan.FromSeconds(5));
         }
 
@@ -128,9 +146,9 @@ namespace Flare.Tcp.Test {
                 Assert.AreEqual(message.Span.ToArray(), testMessage);
                 client.Disconnect();
             });
-            var client = await server.AcceptClientAsync().ConfigureAwait(false);
+            using var client = await server.AcceptClientAsync().ConfigureAwait(false);
             await client.WriteMessageAsync(testMessage).ConfigureAwait(false);
-            server.Stop();
+            server.Shutdown();
             await clientTask.ConfigureAwait(false);
         }
     }

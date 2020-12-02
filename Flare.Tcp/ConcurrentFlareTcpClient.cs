@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -11,6 +10,9 @@ using ValueTaskSupplement;
 
 namespace Flare.Tcp {
     public class ConcurrentFlareTcpClient : FlareTcpClientBase {
+        private CancellationTokenSource? _cancellationTokenSource;
+        private Task? _readTask;
+        private Task? _writeTask;
         private readonly Channel<PendingMessage> _pendingMessages = Channel.CreateUnbounded<PendingMessage>(new UnboundedChannelOptions() { SingleReader = true });
 
         public event MessageReceivedEventHandler? MessageReceived;
@@ -23,63 +25,40 @@ namespace Flare.Tcp {
         protected override void OnConnected() {
             base.OnConnected();
 
-            var clientCancellationTokenSource = new CancellationTokenSource();
-            var cancellationToken = clientCancellationTokenSource.Token;
+            _cancellationTokenSource = new CancellationTokenSource();
+            var cancellationToken = _cancellationTokenSource.Token;
 
-            var stream = Client!.GetStream();
-            var readTask = TaskUtils.StartLongRunning(ReadLoop, cancellationToken);
-            var writeTask = TaskUtils.StartLongRunning(WriteLoop, cancellationToken);
+            _readTask = TaskUtils.StartLongRunning(ReadLoop, cancellationToken);
+            _writeTask = TaskUtils.StartLongRunning(WriteLoop, cancellationToken);
 
-            Task.WhenAny(readTask, writeTask).ContinueWith(_ => {
-                // handle client disconnect or failure
-                OnDisconnected();
-
+            var readWriteTasks = new Task[] { _readTask, _writeTask };
+            var whenAnyTask = Task.WhenAny(readWriteTasks).ContinueWith(_ => {
                 // ensure both tasks complete
-                clientCancellationTokenSource.Cancel();
-                clientCancellationTokenSource.Dispose();
+                _cancellationTokenSource.Cancel();
+                _cancellationTokenSource.Dispose();
             }, TaskContinuationOptions.RunContinuationsAsynchronously);
 
-            Task.WhenAll(readTask, writeTask).ContinueWith(_ => {
-                _pendingMessages.Writer.Complete();
-
-                // close and dispose stream
-                stream.Close();
-                stream.Dispose();
+            var whenAllTask = Task.WhenAll(readWriteTasks).ContinueWith(_ => {
+                Disconnect();
             }, TaskContinuationOptions.RunContinuationsAsynchronously);
+
 
             void ReadLoop() {
-                var reader = new MessageStreamReader(stream!);
+                var reader = new MessageStreamReader(NetworkStream);
                 while (IsConnected && !cancellationToken.IsCancellationRequested) {
                     var message = reader.ReadMessage();
                     OnMessageReceived(message);
                 }
             }
             async Task WriteLoop() {
-                var writer = new MessageStreamWriter(stream!);
+                var writer = new MessageStreamWriter(NetworkStream);
                 while (await _pendingMessages.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false)) {
-                    // Fast loop around available jobs
                     while (_pendingMessages.Reader.TryRead(out var message)) {
                         writer.WriteMessage(message.Content.Span);
                         message.SetSent();
                     }
                 }
             }
-            /*
-            async Task ReadLoop() {
-                var reader = new MessageStreamReader(stream!);
-                while (IsConnected && !cancellationToken.IsCancellationRequested) {
-                    var message = await reader.ReadMessageAsync(cancellationToken).ConfigureAwait(false);
-                    OnMessageReceived(message);
-                }
-            }
-            async Task WriteLoop() {
-                var writer = new MessageStreamWriter(stream!);
-                await foreach (var message in _pendingMessages.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false)) {
-                    await writer.WriteMessageAsync(message.Content, cancellationToken).ConfigureAwait(false);
-                    message.SetSent();
-                }
-            }
-            */
         }
 
         public void EnqueueMessage(ReadOnlyMemory<byte> message) =>
@@ -117,5 +96,18 @@ namespace Flare.Tcp {
             _pendingMessages.Writer.TryWrite(message);
         private ValueTask EnqueueMessageAsync(in PendingMessage message, CancellationToken cancellationToken = default) =>
             _pendingMessages.Writer.WriteAsync(message, cancellationToken);
+
+        protected override void Cleanup() {
+            base.Cleanup();
+
+            if (_cancellationTokenSource is null)
+                return;
+
+            if (!_cancellationTokenSource.IsCancellationRequested)
+                _cancellationTokenSource.Cancel();
+
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+        }
     }
 }

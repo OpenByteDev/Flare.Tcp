@@ -13,7 +13,7 @@ using ValueTaskSupplement;
 
 namespace Flare.Tcp {
     public class ConcurrentFlareTcpServer : FlareTcpServerBase {
-        private readonly ConcurrentDictionary<long, ClientToken> _clients = new();
+        private ConcurrentDictionary<long, ClientToken> _clients = new();
         private readonly ThreadSafeGuard _listenGuard = new();
         private long _nextClientId /* = 0 */;
 
@@ -59,7 +59,7 @@ namespace Flare.Tcp {
             while (IsRunning) {
                 try {
                     var client = Server!.AcceptTcpClient();
-                    AcceptClient(client);
+                    HandleClient(client);
                 } catch (SocketException e) when (e.SocketErrorCode == SocketError.Interrupted || e.SocketErrorCode == SocketError.OperationAborted) {
                     return;
                 }
@@ -85,7 +85,7 @@ namespace Flare.Tcp {
             while (IsRunning) {
                 try {
                     var client = await Server!.AcceptTcpClientAsync().ConfigureAwait(false);
-                    AcceptClient(client);
+                    HandleClient(client);
                 } catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested) {
                     return;
                 } catch (SocketException e) when (e.SocketErrorCode == SocketError.Interrupted || e.SocketErrorCode == SocketError.OperationAborted) {
@@ -97,21 +97,17 @@ namespace Flare.Tcp {
         protected long GetNextClientId() => _nextClientId;
         protected long GetAndIncrementNextClientId() => Interlocked.Increment(ref _nextClientId) - 1;
 
-        protected virtual void AcceptClient(TcpClient socket) {
+        private void HandleClient(TcpClient socket) {
             var clientId = GetAndIncrementNextClientId();
             var client = new ClientToken(clientId);
             var added = _clients.TryAdd(clientId, client);
             Debug.Assert(added, "Client id already used when it should not.");
 
-            HandleClient(client);
+            client.Socket.Disconnected += () => DisconnectClient(client);
+            client.Socket.MessageReceived += message => OnMessageReceived(client.Id, message);
             client.Socket.DirectConnect(socket);
 
             OnClientConnected(clientId);
-        }
-
-        private void HandleClient(ClientToken client) {
-            client.Socket.Disconnected += () => OnClientDisconnected(client.Id);
-            client.Socket.MessageReceived += message => OnMessageReceived(client.Id, message);
         }
 
         public bool DisconnectClient(long clientId) {
@@ -121,8 +117,10 @@ namespace Flare.Tcp {
         private bool DisconnectClient(ClientToken client) {
             if (!_clients.TryRemove(client.Id))
                 return false;
-            client.Close();
+            if (client.Socket.IsConnected)
+                client.Socket.Disconnect();
             client.Dispose();
+            OnClientDisconnected(client.Id);
             return true;
         }
 
@@ -173,11 +171,20 @@ namespace Flare.Tcp {
             return ValueTaskEx.WhenAll(_clients.Values.Select(client => client.Socket.EnqueueMessagesAsync(messages, cancellationToken)));
         }
 
-        public void Stop() {
-            StopListener();
+        protected override void Cleanup() {
+            base.Cleanup();
 
+            CleanupClients();
+
+            // mark as not listening
             _listenGuard.Unset();
-            _clients.Clear();
+        }
+
+        private void CleanupClients() {
+            var clients = Interlocked.Exchange(ref _clients, new());
+            foreach (var (_, client) in clients)
+                client.Dispose();
+            clients.Clear();
         }
 
         private ThreadSafeGuardToken StartListening() {
@@ -190,16 +197,13 @@ namespace Flare.Tcp {
             return client;
         }
 
-        private class ClientToken : IDisposable {
-            public readonly ConcurrentFlareTcpClient Socket = new();
+        private sealed class ClientToken : IDisposable {
+            public readonly ConcurrentFlareTcpClient Socket;
             public readonly long Id;
 
             public ClientToken(long clientId) {
                 Id = clientId;
-            }
-
-            public void Close() {
-                Socket.Disconnect();
+                Socket = new();
             }
 
             public void Dispose() {
