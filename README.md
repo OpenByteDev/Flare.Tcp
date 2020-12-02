@@ -21,7 +21,7 @@ using var message = await client.ReadNextMessageAsync();
 Console.WriteLine(Encoding.UTF8.GetString(message.Span));
 
 // stop listening.
-server.Stop();
+server.Shutdown();
 ```
 
 ## Using the FlareTcpClient
@@ -53,7 +53,7 @@ server.ClientConnected += clientId => {
 server.ClientDisconnected += clientId => {
 	Console.WriteLine($"Client {clientId} disconnected.");
 	// stop the server
-	server.Stop();
+	server.Shutdown();
 };
 server.MessageReceived += (clientId, message) => {
 	// echo message back to client and wait for it to be sent.
