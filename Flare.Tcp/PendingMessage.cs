@@ -15,7 +15,7 @@ namespace Flare.Tcp {
         public static PendingMessage Create(ReadOnlyMemory<byte> messageContent) => new(messageContent);
         public static PendingMessage CreateWithWait(ReadOnlyMemory<byte> messageContent) {
             var taskSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            return new PendingMessage(messageContent, taskSource);
+            return new(messageContent, taskSource);
         }
 
         public void SetSent() => _sendTask?.TrySetResult();
