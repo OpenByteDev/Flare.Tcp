@@ -26,11 +26,12 @@ namespace Flare.Tcp.Test {
 
         [Test]
         public static void CanAcceptClient() {
+            var port = Utils.GetRandomClientPort();
             using var server = new FlareTcpServer();
-            server.Start(8888);
+            server.Start(port);
             var clientTask = Task.Run(() => {
                 using var client = new FlareTcpClient();
-                client.Connect(IPAddress.Loopback, 8888);
+                client.Connect(IPAddress.Loopback, port);
                 client.Disconnect();
             });
             using var client = server.AcceptClient();
@@ -42,11 +43,12 @@ namespace Flare.Tcp.Test {
 
         [Test]
         public static async Task CanAcceptClientAsync() {
+            var port = Utils.GetRandomClientPort();
             using var server = new FlareTcpServer();
-            server.Start(8888);
+            server.Start(port);
             var clientTask = Task.Run(() => {
                 using var client = new FlareTcpClient();
-                client.Connect(IPAddress.Loopback, 8888);
+                client.Connect(IPAddress.Loopback, port);
                 client.Disconnect();
             });
             using var client = await server.AcceptClientAsync().ConfigureAwait(false);
@@ -57,13 +59,14 @@ namespace Flare.Tcp.Test {
 
         [Test]
         public static void CanReceiveMessage() {
+            var port = Utils.GetRandomClientPort();
             byte[] testMessage = Encoding.UTF8.GetBytes("Test");
 
             using var server = new FlareTcpServer();
-            server.Start(8888);
+            server.Start(port);
             var clientTask = Task.Run(() => {
                 using var client = new FlareTcpClient();
-                client.Connect(IPAddress.Loopback, 8888);
+                client.Connect(IPAddress.Loopback, port);
                 client.WriteMessage(testMessage);
                 client.Disconnect();
             });
@@ -77,13 +80,14 @@ namespace Flare.Tcp.Test {
 
         [Test]
         public static void CanReceiveMessageSpanOwner() {
+            var port = Utils.GetRandomClientPort();
             byte[] testMessage = Encoding.UTF8.GetBytes("Test");
 
             using var server = new FlareTcpServer();
-            server.Start(8888);
+            server.Start(port);
             var clientTask = Task.Run(() => {
                 using var client = new FlareTcpClient();
-                client.Connect(IPAddress.Loopback, 8888);
+                client.Connect(IPAddress.Loopback, port);
                 client.WriteMessage(testMessage);
                 client.Disconnect();
             });
@@ -96,13 +100,14 @@ namespace Flare.Tcp.Test {
 
         [Test]
         public static async Task CanReceiveMessageAsync() {
+            var port = Utils.GetRandomClientPort();
             byte[] testMessage = Encoding.UTF8.GetBytes("Test");
 
             using var server = new FlareTcpServer();
-            server.Start(8888);
+            server.Start(port);
             var clientTask = Task.Run(() => {
                 using var client = new FlareTcpClient();
-                client.Connect(IPAddress.Loopback, 8888);
+                client.Connect(IPAddress.Loopback, port);
                 client.WriteMessage(testMessage);
                 client.Disconnect();
             });
@@ -116,13 +121,14 @@ namespace Flare.Tcp.Test {
 
         [Test]
         public static void CanSendMessage() {
+            var port = Utils.GetRandomClientPort();
             byte[] testMessage = Encoding.UTF8.GetBytes("Test");
 
             using var server = new FlareTcpServer();
-            server.Start(8888);
+            server.Start(port);
             var clientTask = Task.Run(() => {
                 using var client = new FlareTcpClient();
-                client.Connect(IPAddress.Loopback, 8888);
+                client.Connect(IPAddress.Loopback, port);
                 using var message = client.ReadNextMessage();
                 Assert.AreEqual(message.Span.ToArray(), testMessage);
                 client.Disconnect();
@@ -135,13 +141,14 @@ namespace Flare.Tcp.Test {
 
         [Test]
         public static async Task CanSendMessageAsync() {
+            var port = Utils.GetRandomClientPort();
             byte[] testMessage = Encoding.UTF8.GetBytes("Test");
 
             using var server = new FlareTcpServer();
-            server.Start(8888);
+            server.Start(port);
             var clientTask = Task.Run(() => {
                 using var client = new FlareTcpClient();
-                client.Connect(IPAddress.Loopback, 8888);
+                client.Connect(IPAddress.Loopback, port);
                 using var message = client.ReadNextMessage();
                 Assert.AreEqual(message.Span.ToArray(), testMessage);
                 client.Disconnect();
