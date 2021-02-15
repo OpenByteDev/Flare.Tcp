@@ -133,18 +133,19 @@ namespace Flare.Tcp.Test {
         }
 
         [Test]
-        public static async Task CanSendMessageAndWait() {
+        public static async Task CanSendMessageAndFree() {
             var port = Utils.GetRandomClientPort();
             byte[] testMessage = Encoding.UTF8.GetBytes("Test");
 
             using var server = new ConcurrentFlareTcpServer();
-            server.ClientConnected += clientId => {
-                server.EnqueueMessageAndWait(clientId, testMessage);
+            server.MessageReceived += (clientId, message) => {
+                server.EnqueueMessage(clientId, message);
             };
             var listenTask = Task.Run(() => server.ListenAsync(port));
 
             using var client = new FlareTcpClient();
             client.Connect(IPAddress.Loopback, port);
+            client.WriteMessage(testMessage);
             using var message = client.ReadNextMessage();
             Assert.AreEqual(message.Span.ToArray(), testMessage);
             client.Disconnect();
@@ -161,7 +162,7 @@ namespace Flare.Tcp.Test {
 
             using var server = new ConcurrentFlareTcpServer();
             server.ClientConnected += clientId => {
-                messageWriteTask = server.EnqueueMessageAndWaitAsync(clientId, testMessage);
+                messageWriteTask = server.EnqueueMessageAndWaitUntilSentAsync(clientId, testMessage);
                 messageReceivedEvent.Set();
             };
             var listenTask = Task.Run(() => server.ListenAsync(port));

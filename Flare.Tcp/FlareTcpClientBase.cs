@@ -38,6 +38,7 @@ namespace Flare.Tcp {
         [MemberNotNull(nameof(NetworkStream))]
         internal void DirectConnect(TcpClient client) {
             Client = client;
+            HandleConnect();
             OnConnected();
         }
 
@@ -56,6 +57,7 @@ namespace Flare.Tcp {
 
             Client = CreateClient();
             Client.Connect(address, port);
+            HandleConnect();
             OnConnected();
         }
 
@@ -72,6 +74,7 @@ namespace Flare.Tcp {
 
             Client = CreateClient();
             await Client.ConnectAsync(address, port, cancellationToken).ConfigureAwait(false);
+            HandleConnect();
             OnConnected();
         }
 
@@ -85,10 +88,12 @@ namespace Flare.Tcp {
             OnDisconnected();
         }
 
-        [MemberNotNull(nameof(Client))]
         [MemberNotNull(nameof(NetworkStream))]
-        protected virtual void OnConnected() {
+        protected internal virtual void HandleConnect() {
             NetworkStream = Client!.GetStream();
+        }
+
+        protected virtual void OnConnected() {
             Connected?.Invoke();
         }
 

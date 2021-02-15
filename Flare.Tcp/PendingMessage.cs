@@ -1,25 +1,55 @@
 ﻿using System;
+using System.Buffers;
+using System.Threading;
 using System.Threading.Tasks;
-using Flare.Tcp.Extensions;
+using Memowned;
 
 namespace Flare.Tcp {
-    internal readonly struct PendingMessage {
-        public readonly ReadOnlyMemory<byte> Content;
-        private readonly TaskCompletionSource? _sendTask;
+    internal readonly struct PendingMessage : IDisposable {
+        public readonly ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>> Content;
+        public readonly CancellationToken CancellationToken;
+        private readonly TaskCompletionSource? messageSentTaskSource;
 
-        private PendingMessage(ReadOnlyMemory<byte> messageContent, TaskCompletionSource? sendTask = null) {
-            Content = messageContent;
-            _sendTask = sendTask;
+        private PendingMessage(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>> content, CancellationToken cancellationToken, TaskCompletionSource? messageSentTaskSource) {
+            Content = content;
+            CancellationToken = cancellationToken;
+            this.messageSentTaskSource = messageSentTaskSource;
         }
 
-        public static PendingMessage Create(ReadOnlyMemory<byte> messageContent) => new(messageContent);
-        public static PendingMessage CreateWithWait(ReadOnlyMemory<byte> messageContent) {
+        public static PendingMessage Create(ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default) =>
+            Create(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>>.Unowned(memory), cancellationToken);
+        public static PendingMessage Create(IMemoryOwner<byte> memoryOwner, CancellationToken cancellationToken = default) =>
+            Create(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>>.Owned(memoryOwner.Memory, memoryOwner), cancellationToken);
+        private static PendingMessage Create(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>> content, CancellationToken cancellationToken = default) =>
+            new(content, cancellationToken, null);
+
+        public static PendingMessage CreateAwaitable(ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default) =>
+            CreateAwaitable(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>>.Unowned(memory), cancellationToken);
+        public static PendingMessage CreateAwaitable(IMemoryOwner<byte> memoryOwner, CancellationToken cancellationToken = default) =>
+            CreateAwaitable(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>>.Owned(memoryOwner.Memory, memoryOwner), cancellationToken);
+        private static PendingMessage CreateAwaitable(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>> content, CancellationToken cancellationToken = default) {
             var taskSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            return new(messageContent, taskSource);
+            return new(content, cancellationToken, taskSource);
         }
 
-        public void SetSent() => _sendTask?.TrySetResult();
-        public void WaitForSend() => WaitForSendAsync().WaitAndUnwrap();
-        public Task WaitForSendAsync() => _sendTask?.Task ?? throw new InvalidOperationException("Message does not support awaiting.");
+        public void TrySetSent() {
+            messageSentTaskSource?.TrySetResult();
+        }
+
+        public Task WaitUntilSentAsync() {
+            if (messageSentTaskSource is null)
+                throw new InvalidOperationException("message is not awaitable.");
+
+            return Core(messageSentTaskSource, CancellationToken);
+
+            static async Task Core(TaskCompletionSource taskCompletionSource, CancellationToken cancellationToken) {
+                using var registration = cancellationToken.Register(taskSource => ((TaskCompletionSource?)taskSource)?.TrySetCanceled(), taskCompletionSource);
+                await taskCompletionSource.Task.ConfigureAwait(false);
+            }
+        }
+
+        public void Dispose() {
+            Content.Dispose();
+        }
     }
 }

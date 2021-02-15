@@ -2,6 +2,7 @@
 using System.Net;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Flare.Tcp.Test;
 
 namespace Flare.Tcp.Benchmark {
     public class MessageRoundtripBenchmark {
@@ -10,13 +11,14 @@ namespace Flare.Tcp.Benchmark {
         private byte[] data;
 
         [Params(1, 1_000, 1_000_000)]
-        public int MessageBytes;
+        public int MessageBytes = 1;
 
         [Params(1, 1_000)]
-        public int MessageCount;
+        public int MessageCount = 1000;
 
         [GlobalSetup]
         public void Setup() {
+            var port = Utils.GetRandomClientPort();
             var random = new Random();
             data = new byte[MessageBytes];
             random.NextBytes(data);
@@ -24,11 +26,10 @@ namespace Flare.Tcp.Benchmark {
             server = new ConcurrentFlareTcpServer();
             client = new FlareTcpClient();
             server.MessageReceived += (clientId, message) => {
-                server.EnqueueMessageAndWait(clientId, message.Memory);
-                message.Dispose();
+                server.EnqueueMessage(clientId, message);
             };
-            _ = Task.Run(() => server.ListenAsync(8888));
-            client.Connect(IPAddress.Loopback, 8888);
+            _ = Task.Run(() => server.ListenAsync(port));
+            client.Connect(IPAddress.Loopback, port);
         }
 
         [Benchmark]
@@ -44,14 +45,6 @@ namespace Flare.Tcp.Benchmark {
             for (var i = 0; i < MessageCount; i++) {
                 client.WriteMessage(data);
                 using var message = client.ReadNextMessage();
-            }
-        }
-
-        [Benchmark]
-        public void MessageRoundtripSyncSpanOwner() {
-            for (var i = 0; i < MessageCount; i++) {
-                client.WriteMessage(data);
-                using var message = client.ReadNextMessageSpanOwner();
             }
         }
 

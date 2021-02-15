@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,7 +10,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Flare.Tcp.Extensions;
-using Microsoft.Toolkit.HighPerformance.Buffers;
+using Memowned;
 using ValueTaskSupplement;
 
 namespace Flare.Tcp {
@@ -21,7 +22,7 @@ namespace Flare.Tcp {
         public int ClientCount => _clients.Count;
 
         public event MessageReceivedEventHandler? MessageReceived;
-        public delegate void MessageReceivedEventHandler(long clientId, MemoryOwner<byte> message);
+        public delegate void MessageReceivedEventHandler(long clientId, RentedMemory<byte> message);
 
         public event ClientConnectedEventHandler? ClientConnected;
         public delegate void ClientConnectedEventHandler(long clientId);
@@ -29,7 +30,7 @@ namespace Flare.Tcp {
         public event ClientDisconnectedEventHandler? ClientDisconnected;
         public delegate void ClientDisconnectedEventHandler(long clientId);
 
-        protected virtual void OnMessageReceived(long clientId, MemoryOwner<byte> message) {
+        protected virtual void OnMessageReceived(long clientId, RentedMemory<byte> message) {
             MessageReceived?.Invoke(clientId, message);
         }
 
@@ -130,21 +131,32 @@ namespace Flare.Tcp {
             var client = GetClientToken(clientId);
             client.Socket.EnqueueMessage(message);
         }
+        public void EnqueueMessage(long clientId, IMemoryOwner<byte> message) {
+            var client = GetClientToken(clientId);
+            client.Socket.EnqueueMessage(message);
+        }
         public ValueTask EnqueueMessageAsync(long clientId, ReadOnlyMemory<byte> message, CancellationToken cancellationToken = default) {
             var client = GetClientToken(clientId);
             return client.Socket.EnqueueMessageAsync(message, cancellationToken);
         }
-
-        public void EnqueueMessageAndWait(long clientId, ReadOnlyMemory<byte> message) {
+        public ValueTask EnqueueMessageAsync(long clientId, IMemoryOwner<byte> message, CancellationToken cancellationToken = default) {
             var client = GetClientToken(clientId);
-            client.Socket.EnqueueMessageAndWait(message);
+            return client.Socket.EnqueueMessageAsync(message, cancellationToken);
         }
-        public Task EnqueueMessageAndWaitAsync(long clientId, ReadOnlyMemory<byte> message) {
+        public Task EnqueueMessageAndWaitUntilSentAsync(long clientId, ReadOnlyMemory<byte> message, CancellationToken cancellationToken = default) {
             var client = GetClientToken(clientId);
-            return client.Socket.EnqueueMessageAndWaitAsync(message);
+            return client.Socket.EnqueueMessageAndWaitUntilSentAsync(message, cancellationToken);
+        }
+        public Task EnqueueMessageAndWaitUntilSentAsync(long clientId, IMemoryOwner<byte> message, CancellationToken cancellationToken = default) {
+            var client = GetClientToken(clientId);
+            return client.Socket.EnqueueMessageAndWaitUntilSentAsync(message, cancellationToken);
         }
 
         public void EnqueueMessages(long clientId, IEnumerable<ReadOnlyMemory<byte>> messages) {
+            var client = GetClientToken(clientId);
+            client.Socket.EnqueueMessages(messages);
+        }
+        public void EnqueueMessages(long clientId, IEnumerable<IMemoryOwner<byte>> messages) {
             var client = GetClientToken(clientId);
             client.Socket.EnqueueMessages(messages);
         }
@@ -152,25 +164,38 @@ namespace Flare.Tcp {
             var client = GetClientToken(clientId);
             return client.Socket.EnqueueMessagesAsync(messages, cancellationToken);
         }
+        public ValueTask EnqueueMessagesAsync(long clientId, IEnumerable<IMemoryOwner<byte>> messages, CancellationToken cancellationToken = default) {
+            var client = GetClientToken(clientId);
+            return client.Socket.EnqueueMessagesAsync(messages, cancellationToken);
+        }
+        public Task EnqueueMessagesAndWaitUntilSentAsync(long clientId, IEnumerable<ReadOnlyMemory<byte>> messages, CancellationToken cancellationToken = default) {
+            var client = GetClientToken(clientId);
+            return client.Socket.EnqueueMessagesAndWaitUntilSentAsync(messages, cancellationToken);
+        }
+        public Task EnqueueMessagesAndWaitUntilSentAsync(long clientId, IEnumerable<IMemoryOwner<byte>> messages, CancellationToken cancellationToken = default) {
+            var client = GetClientToken(clientId);
+            return client.Socket.EnqueueMessagesAndWaitUntilSentAsync(messages, cancellationToken);
+        }
 
         public void EnqueueBroadcastMessage(ReadOnlyMemory<byte> message) {
+            foreach (var (_, clientToken) in _clients)
+                clientToken.Socket.EnqueueMessage(message);
+        }
+        public void EnqueueBroadcastMessage(IMemoryOwner<byte> message) {
             foreach (var (_, clientToken) in _clients)
                 clientToken.Socket.EnqueueMessage(message);
         }
         public ValueTask EnqueueBroadcastMessageAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken = default) {
             return ValueTaskEx.WhenAll(_clients.Values.Select(client => client.Socket.EnqueueMessageAsync(message, cancellationToken)));
         }
-
-        public void EnqueueBroadcastMessages(IEnumerable<ReadOnlyMemory<byte>> messages) {
-            if (messages is null)
-                throw new ArgumentNullException(nameof(messages));
-
-            foreach (var (_, clientToken) in _clients)
-                foreach (var message in messages)
-                    clientToken.Socket.EnqueueMessage(message);
+        public ValueTask EnqueueBroadcastMessageAsync(IMemoryOwner<byte> message, CancellationToken cancellationToken = default) {
+            return ValueTaskEx.WhenAll(_clients.Values.Select(client => client.Socket.EnqueueMessageAsync(message, cancellationToken)));
         }
-        public ValueTask EnqueueBroadcastMessagesAsync(IEnumerable<ReadOnlyMemory<byte>> messages, CancellationToken cancellationToken = default) {
-            return ValueTaskEx.WhenAll(_clients.Values.Select(client => client.Socket.EnqueueMessagesAsync(messages, cancellationToken)));
+        public Task EnqueueBroadcastMessageAndWaitUntilSentAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken = default) {
+            return Task.WhenAll(_clients.Values.Select(client => client.Socket.EnqueueMessageAndWaitUntilSentAsync(message, cancellationToken)));
+        }
+        public Task EnqueueBroadcastMessageUntilSentAsync(IMemoryOwner<byte> message, CancellationToken cancellationToken = default) {
+            return Task.WhenAll(_clients.Values.Select(client => client.Socket.EnqueueMessageAndWaitUntilSentAsync(message, cancellationToken)));
         }
 
         protected override void Cleanup() {

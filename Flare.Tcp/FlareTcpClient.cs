@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Toolkit.HighPerformance.Buffers;
+using Memowned;
 
 namespace Flare.Tcp {
     public class FlareTcpClient : FlareTcpClientBase {
@@ -15,6 +16,8 @@ namespace Flare.Tcp {
         [MemberNotNull(nameof(MessageWriter))]
         protected override void OnConnected() {
             base.OnConnected();
+
+            Debug.Assert(NetworkStream is not null);
 
             MessageReader = new MessageStreamReader(NetworkStream);
             MessageWriter = new MessageStreamWriter(NetworkStream);
@@ -29,29 +32,25 @@ namespace Flare.Tcp {
             await MessageWriter!.WriteMessageAsync(message, cancellationToken).ConfigureAwait(false);
         }
 
-        public MemoryOwner<byte> ReadNextMessage() {
+        public RentedMemory<byte> ReadNextMessage() {
             using var readToken = StartReading();
             return MessageReader!.ReadMessage();
         }
-        public SpanOwner<byte> ReadNextMessageSpanOwner() {
-            using var readToken = StartReading();
-            return MessageReader!.ReadMessageSpanOwner();
-        }
-        public bool TryReadNextMessage([NotNullWhen(true)] out MemoryOwner<byte>? message) {
+        public bool TryReadNextMessage([NotNullWhen(true)] out RentedMemory<byte>? message) {
             using var readToken = StartReading();
             return MessageReader!.TryReadMessage(out message);
         }
-        public MemoryOwner<byte>? TryReadNextMessage() {
+        public RentedMemory<byte>? TryReadNextMessage() {
             using var readToken = StartReading();
             return MessageReader!.TryReadMessage();
         }
 
-        public async Task<MemoryOwner<byte>> ReadNextMessageAsync(CancellationToken cancellationToken = default) {
+        public async Task<RentedMemory<byte>> ReadNextMessageAsync(CancellationToken cancellationToken = default) {
             using var readToken = StartReading();
             // we need to await here because otherwise the token would immediately be disposed.
             return await MessageReader!.ReadMessageAsync(cancellationToken).ConfigureAwait(false);
         }
-        public async Task<MemoryOwner<byte>?> TryReadNextMessageAsync(CancellationToken cancellationToken = default) {
+        public async Task<RentedMemory<byte>?> TryReadNextMessageAsync(CancellationToken cancellationToken = default) {
             using var readToken = StartReading();
             // we need to await here because otherwise the token would immediately be disposed.
             return await MessageReader!.TryReadMessageAsync(cancellationToken).ConfigureAwait(false);

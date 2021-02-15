@@ -27,17 +27,21 @@ namespace Flare.Tcp.Extensions {
                 buffer = buffer[read..];
             }
         }
-        public static async Task<bool> TryReadExactAsync(this Stream stream, Memory<byte> buffer, CancellationToken cancellationToken = default) {
+        public static Task<bool> TryReadExactAsync(this Stream stream, Memory<byte> buffer, CancellationToken cancellationToken = default) {
             if (buffer.IsEmpty)
-                return true;
+                return Task.FromResult(true);
 
-            while (true) {
-                var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-                if (read == 0)
-                    return false;
-                if (read == buffer.Length)
-                    return true;
-                buffer = buffer[read..];
+            return Core();
+
+            async Task<bool> Core() {
+                while (true) {
+                    var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                    if (read == 0)
+                        return false;
+                    if (read == buffer.Length)
+                        return true;
+                    buffer = buffer[read..];
+                }
             }
         }
     }

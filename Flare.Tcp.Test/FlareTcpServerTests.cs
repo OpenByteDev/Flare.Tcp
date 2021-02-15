@@ -79,26 +79,6 @@ namespace Flare.Tcp.Test {
         }
 
         [Test]
-        public static void CanReceiveMessageSpanOwner() {
-            var port = Utils.GetRandomClientPort();
-            byte[] testMessage = Encoding.UTF8.GetBytes("Test");
-
-            using var server = new FlareTcpServer();
-            server.Start(port);
-            var clientTask = Task.Run(() => {
-                using var client = new FlareTcpClient();
-                client.Connect(IPAddress.Loopback, port);
-                client.WriteMessage(testMessage);
-                client.Disconnect();
-            });
-            using var client = server.AcceptClient();
-            using var message = client.ReadNextMessageSpanOwner();
-            Assert.AreEqual(message.Span.ToArray(), testMessage);
-            server.Shutdown();
-            clientTask.Wait(TimeSpan.FromSeconds(5));
-        }
-
-        [Test]
         public static async Task CanReceiveMessageAsync() {
             var port = Utils.GetRandomClientPort();
             byte[] testMessage = Encoding.UTF8.GetBytes("Test");
