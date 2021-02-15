@@ -57,9 +57,7 @@ server.ClientDisconnected += clientId => {
 };
 server.MessageReceived += (clientId, message) => {
 	// echo message back to client and wait for it to be sent.
-	server.EnqueueMessageAndWait(clientId, message.Memory);
-	// free the message buffer
-	message.Dispose();
+	server.EnqueueMessage(clientId, message);
 };
 
 // start listening on port 4242.
@@ -92,4 +90,4 @@ await client.EnqueueMessageAsync(Encoding.UTF8.GetBytes("Anyone there?"));
 
 ## Icon
 
-Icon made by <a href="https://www.flaticon.com/authors/smashicons" title="Smashicons">Smashicons</a> from <a href="https://www.flaticon.com/" title="Flaticon"> www.flaticon.com</a>
+Icon made by [Smashicons](https://www.flaticon.com/authors/smashicons) from [flaticon.com](https://www.flaticon.com/)
