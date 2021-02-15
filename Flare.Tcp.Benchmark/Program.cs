@@ -8,9 +8,6 @@ namespace Flare.Tcp.Benchmark {
             var config = DefaultConfig.Instance
                 .AddDiagnoser(MemoryDiagnoser.Default);
             BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, config);
-
-            // BenchmarkRunner.Run<MessageRoundtripBenchmark>(config);
-            Console.Read();
         }
     }
 }
