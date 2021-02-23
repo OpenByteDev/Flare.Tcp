@@ -2,7 +2,6 @@
 
 [![nuget badge](https://badgen.net/nuget/v/Flare.Tcp)](https://www.nuget.org/packages/Flare.Tcp/)
 [![Unlicense](https://img.shields.io/github/license/OpenByteDev/Flare.Tcp)](https://github.com/OpenByteDev/Flare.Tcp/blob/master/UNLICENSE)
-![dependency status](https://img.shields.io/librariesio/github/OpenByteDev/Flare.Tcp)
 
 A basic multi-client message-based tcp server (and client). 
 
