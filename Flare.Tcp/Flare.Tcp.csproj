@@ -31,7 +31,6 @@
   <ItemGroup>
     <PackageReference Include="Memowned" Version="0.3.1" />
     <PackageReference Include="ValueTaskSupplement" Version="1.1.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="5.0.3" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
