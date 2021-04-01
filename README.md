@@ -1,7 +1,7 @@
 # <img src="https://raw.githubusercontent.com/OpenByteDev/Flare.Tcp/master/icon.png" height="40px" /> Flare.Tcp
 
 [![nuget badge](https://badgen.net/nuget/v/Flare.Tcp)](https://www.nuget.org/packages/Flare.Tcp/)
-[![Unlicense](https://img.shields.io/github/license/OpenByteDev/Flare.Tcp)](./UNLICENSE)
+[![Unlicense](https://img.shields.io/github/license/OpenByteDev/Flare.Tcp)](https://github.com/OpenByteDev/Flare.Tcp/blob/master/UNLICENSE)
 
 A basic multi-client message-based tcp server (and client). 
 
