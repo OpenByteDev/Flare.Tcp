@@ -31,13 +31,13 @@ namespace Flare.Tcp {
             var writeTask = TaskUtils.StartLongRunning(WriteLoop, cancellationToken);
 
             var readWriteTasks = new Task[] { readTask, writeTask };
-            var whenAnyTask = Task.WhenAny(readWriteTasks).ContinueWith(_ => {
+            Task.WhenAny(readWriteTasks).ContinueWith(_ => {
                 // ensure both tasks complete
                 _cancellationTokenSource.Cancel();
                 _cancellationTokenSource.Dispose();
             }, TaskContinuationOptions.RunContinuationsAsynchronously);
 
-            var whenAllTask = Task.WhenAll(readWriteTasks).ContinueWith(_ => {
+            Task.WhenAll(readWriteTasks).ContinueWith(_ => {
                 Disconnect();
             }, TaskContinuationOptions.RunContinuationsAsynchronously);
 
