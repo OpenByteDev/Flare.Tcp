@@ -19,7 +19,7 @@
     <RepositoryUrl>https://github.com/OpenByteDev/Flare.Tcp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>tcp,server,client,networking,simple,async,sync,message-based</PackageTags>
-    <Version>0.2.2</Version>
+    <Version>0.2.3</Version>
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
