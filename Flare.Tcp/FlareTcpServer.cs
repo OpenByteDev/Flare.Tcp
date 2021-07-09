@@ -15,7 +15,7 @@ namespace Flare.Tcp {
         }
         /*public async Task<FlareTcpClient> AcceptClientAsync(CancellationToken cancellationToken = default) {
            EnsureRunning();
-           var client = await Listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
+           var client = await Server.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
            return new FlareTcpClient(client);
         }*/
         public async Task<FlareTcpClient> AcceptClientAsync() {

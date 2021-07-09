@@ -10,7 +10,7 @@ namespace Flare.Tcp {
         public readonly CancellationToken CancellationToken;
         private readonly TaskCompletionSource? messageSentTaskSource;
 
-        private PendingMessage(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>> content, CancellationToken cancellationToken, TaskCompletionSource? messageSentTaskSource) {
+        private PendingMessage(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>> content, TaskCompletionSource? messageSentTaskSource, CancellationToken cancellationToken) {
             Content = content;
             CancellationToken = cancellationToken;
             this.messageSentTaskSource = messageSentTaskSource;
@@ -21,7 +21,7 @@ namespace Flare.Tcp {
         public static PendingMessage Create(IMemoryOwner<byte> memoryOwner, CancellationToken cancellationToken = default) =>
             Create(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>>.Owned(memoryOwner.Memory, memoryOwner), cancellationToken);
         private static PendingMessage Create(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>> content, CancellationToken cancellationToken = default) =>
-            new(content, cancellationToken, null);
+            new(content, null, cancellationToken);
 
         public static PendingMessage CreateAwaitable(ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default) =>
             CreateAwaitable(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>>.Unowned(memory), cancellationToken);
@@ -29,7 +29,7 @@ namespace Flare.Tcp {
             CreateAwaitable(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>>.Owned(memoryOwner.Memory, memoryOwner), cancellationToken);
         private static PendingMessage CreateAwaitable(ReadOnlyOwnedMemory<byte, IMemoryOwner<byte>> content, CancellationToken cancellationToken = default) {
             var taskSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            return new(content, cancellationToken, taskSource);
+            return new(content, taskSource, cancellationToken);
         }
 
         public void TrySetSent() {
